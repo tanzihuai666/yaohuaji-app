@@ -608,6 +608,16 @@
         <button class="modal-close-btn" onclick="app.closeCharAddCommissionModal()">✕</button>
       </div>
       <div class="modal-body">
+        <!-- 约稿作品图片上传与预览 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">约稿作品画作 (选填)</label>
+          <div id="charAddCommImgPreview" style="width:100%;height:130px;border-radius:14px;border:2px dashed #5C4B47;background:#FFF8F0;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;" onclick="document.getElementById('charAddCommImgInput').click()">
+            <span style="font-size:26px;">🎨</span>
+            <span style="font-size:12px;color:var(--primary);font-weight:800;margin-top:4px;">点击从相册选择约稿画作</span>
+          </div>
+          <input type="file" id="charAddCommImgInput" accept="image/*" style="display:none;" onchange="app.handleCharAddCommImgUpload(this.files[0])" />
+        </div>
+
         <div class="form-group" style="margin-bottom:14px;">
           <label class="form-label" style="font-weight:900;">约稿作品标题 *</label>
           <input type="text" id="charAddCommTitleInput" class="form-input" placeholder="例如：白桃桃 · 梦幻花嫁立绘" maxlength="30" />
@@ -616,9 +626,15 @@
           <label class="form-label" style="font-weight:900;">画师名称</label>
           <input type="text" id="charAddCommArtistInput" class="form-input" placeholder="例如：神秘画师 / 特邀画师" maxlength="20" />
         </div>
-        <div class="form-group" style="margin-bottom:14px;">
-          <label class="form-label" style="font-weight:900;">稿费金额 (¥) *</label>
-          <input type="number" id="charAddCommPriceInput" class="form-input" placeholder="例如：300" min="0" />
+        <div class="form-row-2" style="margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:900;">稿费金额 (¥) *</label>
+            <input type="number" id="charAddCommPriceInput" class="form-input" placeholder="例如：300" min="0" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:900;">约稿日期</label>
+            <input type="date" id="charAddCommDateInput" class="form-input" />
+          </div>
         </div>
         <div class="form-group" style="margin-bottom:16px;">
           <label class="form-label" style="font-weight:900;">约稿备注</label>
@@ -628,6 +644,87 @@
       <div class="modal-footer" style="display:flex;gap:10px;">
         <button class="btn btn-secondary" style="flex:1;" onclick="app.closeCharAddCommissionModal()">取消</button>
         <button class="btn btn-primary" style="flex:2;" onclick="app.saveCharAddCommission()">保存约稿记录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6.75 约稿详情与完整编辑模态框 (支持更改图片、修改信息、删除约稿) -->
+  <div class="modal-backdrop" id="commissionEditModal">
+    <div class="modal-sheet" style="max-height:90dvh;">
+      <div class="modal-header">
+        <div class="modal-title" id="commEditModalTitle">约稿详情与编辑</div>
+        <button class="modal-close-btn" onclick="app.closeCommissionEditModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding-bottom:20px;">
+        <!-- 画作图片大图预览与更换 -->
+        <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:16px;">
+          <div id="commEditImgPreviewWrap" style="width:100%;height:180px;border-radius:16px;border:2.5px solid #5C4B47;overflow:hidden;background:#FFF8F0;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;box-shadow:0 4px 12px rgba(92,75,71,0.12);" onclick="app.viewCurrentCommImage()">
+            <img id="commEditImgPreview" src="" style="width:100%;height:100%;object-fit:cover;display:none;" />
+            <div id="commEditNoImgPlaceholder" style="text-align:center;color:#5C4B47;">
+              <span style="font-size:36px;">🎨</span>
+              <div style="font-size:12px;font-weight:900;margin-top:4px;">暂无画作大图，点击上传</div>
+            </div>
+            <div id="commEditZoomTag" style="position:absolute;bottom:8px;right:8px;background:rgba(45,35,33,0.85);color:#fff;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:800;display:none;">
+              🔍 点击放大
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:10px;width:100%;">
+            <button type="button" class="btn btn-secondary" style="flex:1;padding:7px 12px;font-size:12.5px;" onclick="document.getElementById('commEditImgInput').click()">
+              📷 更换/上传画作原图
+            </button>
+            <button type="button" class="btn btn-secondary" style="padding:7px 12px;font-size:12.5px;" onclick="app.clearCurrentCommImage()">
+              移除图片
+            </button>
+          </div>
+          <input type="file" id="commEditImgInput" accept="image/*" style="display:none;" onchange="app.handleCommEditImgUpload(this.files[0])" />
+        </div>
+
+        <!-- 所属设子 -->
+        <div style="margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:13px;font-weight:900;color:#5C4B47;">所属设子：</span>
+          <span id="commEditCharBadge" class="badge-chip badge-primary"></span>
+        </div>
+
+        <!-- 作品名称 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">作品标题 *</label>
+          <input type="text" id="commEditTitleInput" class="form-input" placeholder="输入作品名称" maxlength="30" />
+        </div>
+
+        <!-- 画师与金额并排 -->
+        <div class="form-row-2" style="margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:900;">画师昵称</label>
+            <input type="text" id="commEditArtistInput" class="form-input" placeholder="输入画师名称" maxlength="20" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:900;">稿费金额 (¥) *</label>
+            <input type="number" id="commEditPriceInput" class="form-input" placeholder="300" min="0" />
+          </div>
+        </div>
+
+        <!-- 约稿日期 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">约稿日期</label>
+          <input type="date" id="commEditDateInput" class="form-input" />
+        </div>
+
+        <!-- 约稿备注 -->
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label" style="font-weight:900;">约稿备注</label>
+          <textarea id="commEditNoteInput" class="form-textarea" rows="2" placeholder="填写约稿要求、规格或收录说明..."></textarea>
+        </div>
+
+        <!-- 危险区：删除此笔约稿 -->
+        <div style="margin-top:20px;">
+          <button type="button" class="btn btn-danger btn-block" onclick="app.deleteCurrentCommission()">
+            🗑️ 删除此笔约稿记录
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="app.closeCommissionEditModal()">取消</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="app.saveCommissionEdit()">保存约稿修改</button>
       </div>
     </div>
   </div>
@@ -709,6 +806,7 @@
   <input type="file" id="galleryImgUploadInput" multiple accept="image/*" style="display:none;" onchange="app.handleGalleryImageImport(this.files)" />
   <input type="file" id="charAvatarInput" accept="image/*" style="display:none;" onchange="app.handleCharAvatarUpload(this.files[0])" />
   <input type="file" id="userAvatarFileInput" accept="image/*" style="display:none;" onchange="app.handleUserAvatarUpload(this.files[0])" />
+  <input type="file" id="batchCommissionImgInput" multiple accept="image/*" style="display:none;" onchange="app.handleBatchCommissionImport(this.files)" />
 
   <!-- 脚本加载 -->
   <script src="js/lib/jszip.min.js"></script>

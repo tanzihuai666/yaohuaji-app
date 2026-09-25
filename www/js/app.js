@@ -25,6 +25,12 @@ class AppController {
     this.editingCharAvatarData = '';
     this.addingCommCharId = null;
     this.addingCommGrpId = null;
+    this.batchImportCharId = null;
+    this.editingCommId = null;
+    this.editingCommCharId = null;
+    this.editingCommGrpId = null;
+    this.editingCommImageData = '';
+    this.addingCommImageData = '';
   }
 
   async init() {
@@ -1025,9 +1031,14 @@ class AppController {
           <div class="char-group-content">
             <div class="poster-grid-3">
               ${(firstGroup.commissions || []).slice(0, 6).map((comm, cIdx) => `
-                <div class="poster-thumb-wrap" onclick="app.openCharProfile('${activeChar.id}')" style="position:relative;cursor:pointer;">
-                  ${comm.image ? `<img src="${comm.image}" style="width:100%;height:100%;object-fit:cover;" />` : (window.ILLUST ? (cIdx % 2 === 0 ? window.createChibiAvatarSvg('#FFF1BD', '#8D6E63', '呆毛', '#FFAB91', '#FFE0BD', '#FF8A65') : window.createBustIllustSvg('#FFCDD2', '晚霞', '日落')) : '')}
-                  <span style="position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.92);border:1.5px solid #5C4B47;border-radius:99px;font-size:10px;font-weight:900;color:#5C4B47;padding:1px 5px;box-shadow:0 1px 3px rgba(92,75,71,0.15);">¥${comm.price || (cIdx % 2 === 0 ? 150 : 380)}</span>
+                <div class="poster-thumb-wrap" onclick="app.openCommissionDetail('${comm.id}')" style="position:relative;cursor:pointer;">
+                  ${comm.image ? `<img src="${comm.image}" style="width:100%;height:100%;object-fit:cover;" />` : `
+                    <div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#FFF8F0;color:#5C4B47;">
+                      <span style="font-size:22px;">🎨</span>
+                      <span style="font-size:10px;font-weight:900;color:var(--primary);margin-top:2px;">点击传画作</span>
+                    </div>
+                  `}
+                  <span style="position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.92);border:1.5px solid #5C4B47;border-radius:99px;font-size:10px;font-weight:900;color:#5C4B47;padding:1px 5px;box-shadow:0 1px 3px rgba(92,75,71,0.15);">¥${comm.price || 0}</span>
                 </div>
               `).join('')}
             </div>
@@ -1212,8 +1223,12 @@ class AppController {
           <div class="char-group-content" id="grpContent_${grp.id}">
             <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:10px;">
               ${(grp.commissions || []).map(comm => `
-                <div class="card" style="padding:10px;margin-bottom:0;" onclick="app.openCommissionDetail('${comm.id}')">
-                  ${comm.image ? `<img src="${comm.image}" class="poster-thumb" style="width:100%;height:120px;margin-bottom:6px;object-fit:cover;" />` : ''}
+                  ${comm.image ? `<img src="${comm.image}" class="poster-thumb" style="width:100%;height:120px;margin-bottom:6px;object-fit:cover;" />` : `
+                    <div class="poster-thumb" style="width:100%;height:120px;margin-bottom:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#FFF8F0;color:#5C4B47;">
+                      <span style="font-size:26px;">🎨</span>
+                      <span style="font-size:11px;font-weight:900;color:var(--primary);margin-top:4px;">点击上传画作</span>
+                    </div>
+                  `}
                   <div style="font-weight:900;font-size:13px;">${this.escapeHtml(comm.title)}</div>
                   <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
                     <span style="color:var(--subtext);">${this.escapeHtml(comm.artist || '佚名')}</span>
@@ -1471,52 +1486,65 @@ class AppController {
     }
   }
 
-  // 批量导入约稿到角色
-  async openBatchCommissionModal(charId) {
-    const char = window.store.data.chars.find(c => c.id === charId);
+  // 批量导入约稿到角色 (从相册批量选择画作原图导入)
+  openBatchCommissionModal(charId) {
+    this.batchImportCharId = charId;
+    const input = document.getElementById('batchCommissionImgInput');
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  }
+
+  async handleBatchCommissionImport(fileList) {
+    if (!fileList || fileList.length === 0 || !this.batchImportCharId) return;
+    const char = window.store.data.chars.find(c => c.id === this.batchImportCharId);
     if (!char) return;
-    const countStr = await this.showPrompt({
-      title: '批量导入约稿',
-      message: `为角色「${char.name}」快速批量导入约稿记录，请输入数量（1-5）：`,
-      defaultValue: '2',
-      placeholder: '请输入1至5的数字'
-    });
-    if (!countStr) return;
-    const count = parseInt(countStr, 10);
-    if (!count || count <= 0) return;
+
+    this.showToast(`正在批量导入 ${fileList.length} 张约稿画作...`);
     if (!char.groups || char.groups.length === 0) {
       char.groups = [{ id: 'grp_' + Date.now(), name: '约稿记录', commissions: [] }];
     }
     const targetGrp = char.groups[0];
-    for (let i = 1; i <= Math.min(count, 5); i++) {
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      const res = await window.store.compressImage(file, 1400, 0.75);
+      const cleanName = (file.name || '').replace(/\.[^/.]+$/, '').trim();
+      const title = cleanName ? `${char.name} · ${cleanName}` : `${char.name} · 新约稿 ${targetGrp.commissions.length + 1}`;
+
       targetGrp.commissions.push({
         id: 'comm_' + Date.now() + '_' + i,
-        title: `${char.name} · 新约稿 ${targetGrp.commissions.length + 1}`,
+        title: title,
         artist: '特邀画师',
         price: 300,
-        note: '批量导入记录',
-        image: '',
+        note: '相册导入约稿',
+        image: res.data,
         date: new Date().toISOString().split('T')[0]
       });
     }
+
     const totalGroupCost = targetGrp.commissions.reduce((s, c) => s + (c.price || 0), 0);
     targetGrp.name = `约稿记录 (共${targetGrp.commissions.length}张 · 累计稿费 ¥${totalGroupCost.toLocaleString()})`;
-    window.store.persist();
-    this.openCharProfile(charId);
+    await window.store.persist();
+
+    this.openCharProfile(this.batchImportCharId);
     this.renderActiveCharDossier();
-    this.showToast(`已批量添加 ${count} 笔约稿记录 ✨`);
+    this.showToast(`成功导入 ${fileList.length} 笔约稿画作记录！✨`);
   }
 
-  // 查看具体某笔约稿详情
-  async openCommissionDetail(commId) {
+  // 查看与编辑具体某笔约稿详情 (支持更改画作、修改信息、删除约稿)
+  openCommissionDetail(commId) {
     let foundComm = null;
     let foundChar = null;
+    let foundGrp = null;
     for (const c of window.store.data.chars) {
       for (const g of (c.groups || [])) {
         const comm = (g.commissions || []).find(item => item.id === commId);
         if (comm) {
           foundComm = comm;
           foundChar = c;
+          foundGrp = g;
           break;
         }
       }
@@ -1526,20 +1554,149 @@ class AppController {
       this.showToast('未找到该约稿记录');
       return;
     }
-    await this.showConfirm({
-      title: `约稿详情 · ${foundComm.title}`,
-      message: `所属设子：${foundChar ? foundChar.name : '-'}\n画师昵称：${foundComm.artist || '佚名'}\n稿酬金额：¥${foundComm.price || 0}\n备注说明：${foundComm.note || '无'}\n创建日期：${foundComm.date || '-'}`,
-      confirmText: '我知道啦',
-      cancelText: '关闭'
-    });
+
+    this.editingCommId = commId;
+    this.editingCommCharId = foundChar ? foundChar.id : null;
+    this.editingCommGrpId = foundGrp ? foundGrp.id : null;
+    this.editingCommImageData = foundComm.image || '';
+
+    const modal = document.getElementById('commissionEditModal');
+    if (!modal) return;
+
+    document.getElementById('commEditModalTitle').textContent = `约稿详情 · ${foundComm.title}`;
+    document.getElementById('commEditCharBadge').textContent = foundChar ? foundChar.name : '设子档案';
+    document.getElementById('commEditTitleInput').value = foundComm.title || '';
+    document.getElementById('commEditArtistInput').value = foundComm.artist || '';
+    document.getElementById('commEditPriceInput').value = foundComm.price !== undefined ? foundComm.price : 0;
+    document.getElementById('commEditDateInput').value = foundComm.date || new Date().toISOString().split('T')[0];
+    document.getElementById('commEditNoteInput').value = foundComm.note || '';
+
+    this.updateCommEditImagePreview();
+
+    modal.classList.add('modal-open');
+    window.store.pushBackHandler(() => this.closeCommissionEditModal());
   }
 
-  // 单独添加一笔约稿到分组 (弹出专属模态框)
+  updateCommEditImagePreview() {
+    const preview = document.getElementById('commEditImgPreview');
+    const placeholder = document.getElementById('commEditNoImgPlaceholder');
+    const zoomTag = document.getElementById('commEditZoomTag');
+    if (this.editingCommImageData) {
+      if (preview) {
+        preview.src = this.editingCommImageData;
+        preview.style.display = 'block';
+      }
+      if (placeholder) placeholder.style.display = 'none';
+      if (zoomTag) zoomTag.style.display = 'block';
+    } else {
+      if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+      }
+      if (placeholder) placeholder.style.display = 'block';
+      if (zoomTag) zoomTag.style.display = 'none';
+    }
+  }
+
+  async handleCommEditImgUpload(file) {
+    if (!file) return;
+    this.showToast('正在压缩画作图片...');
+    const res = await window.store.compressImage(file, 1600, 0.75);
+    this.editingCommImageData = res.data;
+    this.updateCommEditImagePreview();
+    this.showToast('画作图片已更新');
+  }
+
+  clearCurrentCommImage() {
+    this.editingCommImageData = '';
+    this.updateCommEditImagePreview();
+    this.showToast('已移除画作图片');
+  }
+
+  viewCurrentCommImage() {
+    if (this.editingCommImageData) {
+      this.openImageViewer([this.editingCommImageData]);
+    } else {
+      document.getElementById('commEditImgInput')?.click();
+    }
+  }
+
+  closeCommissionEditModal() {
+    const modal = document.getElementById('commissionEditModal');
+    if (modal) modal.classList.remove('modal-open');
+  }
+
+  async saveCommissionEdit() {
+    if (!this.editingCommId || !this.editingCommCharId || !this.editingCommGrpId) return;
+    const char = window.store.data.chars.find(c => c.id === this.editingCommCharId);
+    if (!char) return;
+    const grp = (char.groups || []).find(g => g.id === this.editingCommGrpId);
+    if (!grp) return;
+    const comm = (grp.commissions || []).find(c => c.id === this.editingCommId);
+    if (!comm) return;
+
+    const title = document.getElementById('commEditTitleInput')?.value.trim();
+    if (!title) {
+      this.showToast('请输入作品标题');
+      return;
+    }
+
+    const artist = document.getElementById('commEditArtistInput')?.value.trim() || '佚名';
+    const price = parseInt(document.getElementById('commEditPriceInput')?.value, 10) || 0;
+    const date = document.getElementById('commEditDateInput')?.value || new Date().toISOString().split('T')[0];
+    const note = document.getElementById('commEditNoteInput')?.value.trim() || '';
+
+    comm.title = title;
+    comm.artist = artist;
+    comm.price = price;
+    comm.date = date;
+    comm.note = note;
+    comm.image = this.editingCommImageData;
+
+    const totalGroupCost = grp.commissions.reduce((s, c) => s + (c.price || 0), 0);
+    grp.name = `约稿记录 (共${grp.commissions.length}张 · 累计稿费 ¥${totalGroupCost.toLocaleString()})`;
+    await window.store.persist();
+
+    this.closeCommissionEditModal();
+    this.openCharProfile(this.editingCommCharId);
+    this.renderActiveCharDossier();
+    this.showToast(`约稿「${title}」已成功保存 ✨`);
+  }
+
+  async deleteCurrentCommission() {
+    if (!this.editingCommId || !this.editingCommCharId || !this.editingCommGrpId) return;
+    const char = window.store.data.chars.find(c => c.id === this.editingCommCharId);
+    if (!char) return;
+    const grp = (char.groups || []).find(g => g.id === this.editingCommGrpId);
+    if (!grp) return;
+    const comm = (grp.commissions || []).find(c => c.id === this.editingCommId);
+    if (!comm) return;
+
+    const confirmed = await this.showConfirm({
+      title: '删除约稿记录',
+      message: `确定要删除约稿「${comm.title}」吗？\n删除后该笔约稿数据与画作将无法找回。`,
+      danger: true
+    });
+    if (!confirmed) return;
+
+    grp.commissions = grp.commissions.filter(c => c.id !== this.editingCommId);
+    const totalGroupCost = grp.commissions.reduce((s, c) => s + (c.price || 0), 0);
+    grp.name = `约稿记录 (共${grp.commissions.length}张 · 累计稿费 ¥${totalGroupCost.toLocaleString()})`;
+    await window.store.persist();
+
+    this.closeCommissionEditModal();
+    this.openCharProfile(this.editingCommCharId);
+    this.renderActiveCharDossier();
+    this.showToast(`约稿「${comm.title}」已删除`);
+  }
+
+  // 单独添加一笔约稿到分组 (弹出专属模态框，带画作上传)
   openAddCommissionToGroup(charId, grpId) {
     const char = window.store.data.chars.find(c => c.id === charId);
     if (!char) return;
     this.addingCommCharId = charId;
     this.addingCommGrpId = grpId;
+    this.addingCommImageData = '';
 
     const modal = document.getElementById('charAddCommissionModal');
     if (!modal) return;
@@ -1547,10 +1704,31 @@ class AppController {
     document.getElementById('charAddCommTitleInput').value = `${char.name} · 梦幻立绘`;
     document.getElementById('charAddCommArtistInput').value = '特邀画师';
     document.getElementById('charAddCommPriceInput').value = '300';
+    document.getElementById('charAddCommDateInput').value = new Date().toISOString().split('T')[0];
     document.getElementById('charAddCommNoteInput').value = '新增约稿';
+
+    const preview = document.getElementById('charAddCommImgPreview');
+    if (preview) {
+      preview.innerHTML = `
+        <span style="font-size:26px;">🎨</span>
+        <span style="font-size:12px;color:var(--primary);font-weight:800;margin-top:4px;">点击从相册选择约稿画作</span>
+      `;
+    }
 
     modal.classList.add('modal-open');
     window.store.pushBackHandler(() => this.closeCharAddCommissionModal());
+  }
+
+  async handleCharAddCommImgUpload(file) {
+    if (!file) return;
+    this.showToast('正在压缩画作图片...');
+    const res = await window.store.compressImage(file, 1600, 0.75);
+    this.addingCommImageData = res.data;
+    const preview = document.getElementById('charAddCommImgPreview');
+    if (preview) {
+      preview.innerHTML = `<img src="${res.data}" style="width:100%;height:100%;object-fit:cover;" />`;
+    }
+    this.showToast('约稿画作已选择');
   }
 
   closeCharAddCommissionModal() {
@@ -1558,7 +1736,7 @@ class AppController {
     if (modal) modal.classList.remove('modal-open');
   }
 
-  saveCharAddCommission() {
+  async saveCharAddCommission() {
     if (!this.addingCommCharId || !this.addingCommGrpId) return;
     const char = window.store.data.chars.find(c => c.id === this.addingCommCharId);
     if (!char) return;
@@ -1574,6 +1752,7 @@ class AppController {
 
     const artist = document.getElementById('charAddCommArtistInput')?.value.trim() || '佚名';
     const price = parseInt(document.getElementById('charAddCommPriceInput')?.value, 10) || 0;
+    const date = document.getElementById('charAddCommDateInput')?.value || new Date().toISOString().split('T')[0];
     const note = document.getElementById('charAddCommNoteInput')?.value.trim() || '';
 
     grp.commissions.push({
@@ -1582,13 +1761,13 @@ class AppController {
       artist: artist,
       price: price,
       note: note,
-      image: '',
-      date: new Date().toISOString().split('T')[0]
+      image: this.addingCommImageData || '',
+      date: date
     });
 
     const totalGroupCost = grp.commissions.reduce((s, c) => s + (c.price || 0), 0);
     grp.name = `约稿记录 (共${grp.commissions.length}张 · 累计稿费 ¥${totalGroupCost.toLocaleString()})`;
-    window.store.persist();
+    await window.store.persist();
 
     this.closeCharAddCommissionModal();
     this.openCharProfile(this.addingCommCharId);

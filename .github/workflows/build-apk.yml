@@ -46,32 +46,41 @@ jobs:
           cd android
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
+          cd ..
+          cp android/app/build/outputs/apk/debug/app-debug.apk ./妖画集.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk ./Yaohuaji.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yaohuaji-app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: 妖画集-Android安装包
+          path: |
+            妖画集.apk
+            Yaohuaji.apk
+            android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v1.0.2
-          name: 妖画集 · 体验修复优化版 (v1.0.2)
+          tag_name: v1.0.3
+          name: 妖画集 · 设子系统重构与全套UI精修版 (v1.0.3)
           body: |
-            ### 🌸 《妖画集》离线手账画库 Android 安装包 (v1.0.2)
-            - **版本**：v1.0.2
-            - **本次修复与优化**：
-              - 🔔 **通知红点智能联动**：去除铃铛图标写死红点，仅在有临近截稿日或逾期时显示，无通知时彻底不显红点；
-              - ✏️ **画手昵称与资料自定义**：支持点击「画手小妖」或「✎ 修改昵称」弹窗随心修改昵称与标语；
-              - 🎬 **开屏极速自播**：解除 Android WebView 手势限制，隐藏原生黑圆播放键，无缝自动播放 1.1s 开屏画卷；
-              - 📅 **日历排版修复**：解决手机端周六列越界溢出，采用自适应布局与圆环胶囊，适配全机型；
-              - 🎨 **画手头像自定义**：支持点击头像直接更换图片，相册选图自动智能高保真压缩保存；
-              - 🖼️ **自定义背景激活**：背景图层深度重构，完美支持个人壁纸上传与透明度微调；
-              - 🧹 **我的页面精简**：按需移除开屏重播卡与纯净承诺卡，界面清爽聚焦。
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+            ### 🌸 《妖画集》离线手账画库 Android 安装包 (v1.0.3)
+            - **版本**：v1.0.3
+            - **本次重点修复与优化**：
+              - 🔑 **永久构建签名证书**：内置固定 keystore 签名，彻底告别签名不一致无法覆盖安装的问题；
+              - 📦 **中文包名定制**：安装包正式命名为 `妖画集.apk`；
+              - 🎀 **设子（OC）头像自由修改**：修复设子头像无法更换的严重逻辑 Bug，支持相册自定义图片，自适应高保真裁切展示；
+              - 📝 **设子全属性独立编辑卡片**：彻底重构原有顺序 prompt 弹窗，推出高颜值手账模态框，姓名/性别/身高/年龄/生日/标签/外貌锚点/背景故事想改哪项就改哪项；
+              - 🗑️ **设子直接删除功能**：在设子详情页及编辑卡片内均可直接删除设子档案，带贴心防误触二次确认；
+              - 🎨 **告别原生安卓弹窗**：全局替换 `prompt` / `confirm` / `alert` 为马卡龙手账风格模态框，包含新建文件夹、新建分类、添加约稿等；
+              - 🚀 **通知平移流体动效**：重构 Toast 通知，从屏幕左侧平滑平移滑入居中并带有弹性阻尼（Spring 动效），视觉体验丝滑。
+          files: |
+            妖画集.apk
+            Yaohuaji.apk
+            android/app/build/outputs/apk/debug/app-debug.apk
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

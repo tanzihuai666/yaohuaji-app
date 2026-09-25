@@ -512,6 +512,155 @@
     </div>
   </div>
 
+  <!-- 6.6 设子全能编辑与创建弹窗 -->
+  <div class="modal-backdrop" id="charEditModal">
+    <div class="modal-sheet" style="max-height:88dvh;">
+      <div class="modal-header">
+        <div class="modal-title" id="charEditModalTitle">编辑设子资料</div>
+        <button class="modal-close-btn" onclick="app.closeCharEditModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding-bottom:20px;">
+        <!-- 头像区 -->
+        <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:16px;">
+          <div style="position:relative;width:80px;height:80px;margin-bottom:8px;cursor:pointer;" onclick="document.getElementById('charEditAvatarInput').click()" title="点击更换头像">
+            <div id="charEditAvatarPreview" style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid #5C4B47;background:#FFF;box-shadow:0 4px 12px rgba(92,75,71,0.15);display:flex;align-items:center;justify-content:center;"></div>
+            <div style="position:absolute;bottom:0;right:0;background:var(--primary);color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #5C4B47;box-shadow:0 2px 4px rgba(0,0,0,0.2);">📷</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button type="button" class="btn btn-secondary" style="padding:4px 12px;font-size:12px;" onclick="document.getElementById('charEditAvatarInput').click()">上传新头像</button>
+            <button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="app.resetCharEditAvatarPreset()">恢复立绘</button>
+          </div>
+          <input type="file" id="charEditAvatarInput" accept="image/*" style="display:none;" onchange="app.handleCharEditAvatarUpload(this.files[0])" />
+        </div>
+
+        <!-- 设子名称 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">设子名称 *</label>
+          <input type="text" id="charEditNameInput" class="form-input" placeholder="输入设子/OC名称，例如：白桃桃" maxlength="24" />
+        </div>
+
+        <!-- 性别选择 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">设子性别</label>
+          <div style="display:flex;gap:10px;" id="charEditGenderPills">
+            <button type="button" class="pill-chip-btn active" data-gender="女" onclick="app.setCharEditGender('女')">女孩子</button>
+            <button type="button" class="pill-chip-btn" data-gender="男" onclick="app.setCharEditGender('男')">男孩子</button>
+            <button type="button" class="pill-chip-btn" data-gender="其它" onclick="app.setCharEditGender('其它')">其它 / 无性</button>
+          </div>
+          <input type="hidden" id="charEditGenderInput" value="女" />
+        </div>
+
+        <!-- 身高 & 年龄 -->
+        <div class="form-row-2" style="margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:900;">身高</label>
+            <input type="text" id="charEditHeightInput" class="form-input" placeholder="例如：160cm" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" style="font-weight:900;">年龄</label>
+            <input type="text" id="charEditAgeInput" class="form-input" placeholder="例如：16岁" />
+          </div>
+        </div>
+
+        <!-- 生日 / 星座 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">生日 / 星座</label>
+          <input type="text" id="charEditBirthdayInput" class="form-input" placeholder="例如：3月15日 · 双鱼座" />
+        </div>
+
+        <!-- 特征标签 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">特征标签 (用空格分隔)</label>
+          <input type="text" id="charEditTagsInput" class="form-input" placeholder="例如：猫耳 双马尾 傲娇 甜心" />
+        </div>
+
+        <!-- 设定锚点 -->
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">设定锚点 (不可遗漏的外貌特征/标志)</label>
+          <textarea id="charEditAnchorInput" class="form-textarea" rows="2" placeholder="例如：头顶有一撮粉白呆毛、左耳耳钉、泪痣..."></textarea>
+        </div>
+
+        <!-- 背景设定 -->
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label" style="font-weight:900;">背景与性格故事</label>
+          <textarea id="charEditBackgroundInput" class="form-textarea" rows="3" placeholder="例如：性格傲娇但容易害羞，喜欢草莓大福和午后晒太阳..."></textarea>
+        </div>
+
+        <!-- 危险操作：删除设子按钮 (仅在编辑已有设子时展示) -->
+        <div id="charEditDeleteSection" style="margin-top:20px;display:none;">
+          <button type="button" class="btn btn-danger btn-block" onclick="app.confirmDeleteChar(app.editingCharId)">
+            🗑️ 删除此设子档案与全部约稿
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="app.closeCharEditModal()">取消</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="app.saveCharEditModal()">保存设子资料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6.7 设子添加约稿记录弹窗 -->
+  <div class="modal-backdrop" id="charAddCommissionModal">
+    <div class="modal-sheet" style="max-height:85dvh;">
+      <div class="modal-header">
+        <div class="modal-title">添加设子约稿记录</div>
+        <button class="modal-close-btn" onclick="app.closeCharAddCommissionModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">约稿作品标题 *</label>
+          <input type="text" id="charAddCommTitleInput" class="form-input" placeholder="例如：白桃桃 · 梦幻花嫁立绘" maxlength="30" />
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">画师名称</label>
+          <input type="text" id="charAddCommArtistInput" class="form-input" placeholder="例如：神秘画师 / 特邀画师" maxlength="20" />
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" style="font-weight:900;">稿费金额 (¥) *</label>
+          <input type="number" id="charAddCommPriceInput" class="form-input" placeholder="例如：300" min="0" />
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label class="form-label" style="font-weight:900;">约稿备注</label>
+          <input type="text" id="charAddCommNoteInput" class="form-input" placeholder="例如：半身插画 / 正比立绘" maxlength="40" />
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="app.closeCharAddCommissionModal()">取消</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="app.saveCharAddCommission()">保存约稿记录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6.8 通用马卡龙风格确认弹窗 (完全替代原生 confirm) -->
+  <div class="modal-backdrop modal-center" id="customConfirmModal" style="z-index:100000;">
+    <div class="modal-sheet" style="max-width:340px;margin:auto;border-radius:24px;padding:24px 20px;text-align:center;">
+      <div id="confirmIconBox" style="font-size:36px;margin-bottom:8px;">🌸</div>
+      <div id="confirmModalTitle" style="font-size:18px;font-weight:900;color:#5C4B47;margin-bottom:8px;">请确认</div>
+      <div id="confirmModalMessage" style="font-size:13.5px;color:#7A6B68;line-height:1.6;margin-bottom:20px;white-space:pre-line;"></div>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button type="button" class="btn btn-secondary" id="confirmModalCancelBtn" style="flex:1;">取消</button>
+        <button type="button" class="btn btn-primary" id="confirmModalOkBtn" style="flex:1;">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6.9 通用马卡龙风格输入弹窗 (完全替代原生 prompt) -->
+  <div class="modal-backdrop modal-center" id="customPromptModal" style="z-index:100000;">
+    <div class="modal-sheet" style="max-width:340px;margin:auto;border-radius:24px;padding:22px 20px;">
+      <div class="modal-header" style="padding:0 0 10px 0;margin-bottom:8px;">
+        <div class="modal-title" id="promptModalTitle">请输入</div>
+        <button class="modal-close-btn" id="promptModalCloseBtn">✕</button>
+      </div>
+      <div id="promptModalMessage" style="font-size:13px;color:#7A6B68;margin-bottom:12px;white-space:pre-line;"></div>
+      <input type="text" id="promptModalInput" class="form-input" style="margin-bottom:18px;" />
+      <div style="display:flex;gap:12px;justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" id="promptModalCancelBtn" style="flex:1;">取消</button>
+        <button type="button" class="btn btn-primary" id="promptModalOkBtn" style="flex:1;">确定</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 7. 存储备份弹窗 -->
   <div class="modal-backdrop" id="backupModal">
     <div class="modal-sheet">

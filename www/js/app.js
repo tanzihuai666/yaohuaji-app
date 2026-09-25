@@ -21,6 +21,10 @@ class AppController {
     this.selectedImageIds = new Set();
     this.viewerImages = [];
     this.viewerIndex = 0;
+    this.editingCharId = null;
+    this.editingCharAvatarData = '';
+    this.addingCommCharId = null;
+    this.addingCommGrpId = null;
   }
 
   async init() {
@@ -706,8 +710,8 @@ class AppController {
     this.openOrderFormModal(order);
   }
 
-  deleteActiveOrder() {
-    if (!confirm('确定要删除这份稿单吗？删除后不可恢复。')) return;
+  async deleteActiveOrder() {
+    if (!await this.showConfirm({ title: '删除稿单', message: '确定要删除这份稿单吗？删除后数据不可恢复。', danger: true })) return;
     window.store.data.orders = window.store.data.orders.filter(o => o.id !== this.activeOrderId);
     window.store.persist();
     this.closeOrderDetail();
@@ -776,13 +780,13 @@ class AppController {
     this.renderFormTypes();
   }
 
-  handleTypeLongPress(e, typeId, isDefault) {
+  async handleTypeLongPress(e, typeId, isDefault) {
     e.preventDefault();
     if (isDefault === 'true') {
       this.showToast('默认分类不支持删除哦');
       return;
     }
-    if (confirm('确定要删除这个自定义分类吗？')) {
+    if (await this.showConfirm({ title: '删除分类', message: '确定要删除这个自定义分类吗？', danger: true })) {
       window.store.data.types = window.store.data.types.filter(t => t.id !== typeId);
       window.store.persist();
       this.renderFormTypes();
@@ -790,8 +794,8 @@ class AppController {
     }
   }
 
-  addNewCustomType() {
-    const name = prompt('请输入新类型名称 (如：插画条漫、壁纸)：');
+  async addNewCustomType() {
+    const name = await this.showPrompt({ title: '新建稿条分类', message: '请输入新分类名称：', placeholder: '如：插画条漫、壁纸' });
     if (name && name.trim()) {
       window.store.data.types.push({
         id: 't_' + Date.now(),
@@ -800,6 +804,7 @@ class AppController {
       });
       window.store.persist();
       this.selectFormType(name.trim());
+      this.showToast(`已添加分类「${name.trim()}」✨`);
     }
   }
 
@@ -849,7 +854,7 @@ class AppController {
     this.editingOrder.note = document.getElementById('formNote').value;
 
     if (!this.editingOrder.client) {
-      alert('请填写客户名称');
+      this.showToast('请填写客户名称');
       return;
     }
 
@@ -949,22 +954,14 @@ class AppController {
     }
 
     wrap.innerHTML = chars.map(c => {
-      let avSvg = '';
-      if (c.avatar === 'illust_rosette' || c.name === '白桃桃') {
-        avSvg = window.ILLUST ? window.ILLUST.whitePeachRosette : '';
-      } else if (c.avatar === 'illust_cat' || c.name === '星野喵') {
-        avSvg = window.ILLUST ? window.ILLUST.catAvatar : '';
-      } else if (c.avatar === 'illust_glasses' || c.name === '雾雨') {
-        avSvg = window.ILLUST ? window.ILLUST.glassesGirl : '';
-      }
-
+      const avatarHtml = this.getCharAvatarHtml(c);
       const isSelected = this.activeCharId === c.id;
 
       return `
         <div style="flex:0 0 74px;text-align:center;cursor:pointer;" onclick="app.selectGalleryChar('${c.id}')">
           <div style="width:62px;height:62px;border-radius:16px;margin:0 auto;border:2.5px solid ${isSelected ? '#FF8DA1' : '#5C4B47'};padding:3px;background:${isSelected ? '#FFF0F3' : '#FFFFFF'};box-shadow:0 3px 8px rgba(92,75,71,${isSelected ? '0.2' : '0.08'});${isSelected ? 'transform:scale(1.06);' : ''}transition:all 0.2s var(--ease-spring);">
-            <div style="width:100%;height:100%;border-radius:11px;overflow:hidden;background:#FFF3E8;">
-              ${avSvg ? avSvg : (c.avatar ? `<img src="${c.avatar}" style="width:100%;height:100%;object-fit:cover;" />` : getIcon('user', 36))}
+            <div style="width:100%;height:100%;border-radius:11px;overflow:hidden;background:#FFF3E8;display:flex;align-items:center;justify-content:center;">
+              ${avatarHtml}
             </div>
           </div>
           <div style="font-size:12px;font-weight:900;color:#5C4B47;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
@@ -972,7 +969,7 @@ class AppController {
           </div>
         </div>`;
     }).join('') + `
-      <div style="flex:0 0 74px;text-align:center;cursor:pointer;" onclick="app.openCharFormModal()">
+      <div style="flex:0 0 74px;text-align:center;cursor:pointer;" onclick="app.openCharEditModal(null)">
         <div style="width:62px;height:62px;border-radius:16px;margin:0 auto;border:2px dashed #5C4B47;display:flex;align-items:center;justify-content:center;background:#FFF8F0;transition:all 0.2s var(--ease-spring);">
           ${getIcon('plus', 24)}
         </div>
@@ -998,23 +995,20 @@ class AppController {
       return;
     }
 
-    let avSvg = window.ILLUST ? window.ILLUST.whitePeachRosette : getIcon('user', 48);
-    if (activeChar.name === '星野喵' && window.ILLUST) avSvg = window.ILLUST.catAvatar;
-    if (activeChar.name === '雾雨' && window.ILLUST) avSvg = window.ILLUST.glassesGirl;
-
-    const tags = activeChar.tags || ['粉毛', '猫耳', '傲娇', '蝴蝶结'];
+    const avHtml = this.getCharAvatarHtml(activeChar);
+    const tags = activeChar.tags || ['设子'];
     const groups = activeChar.groups || [];
-    const firstGroup = groups[0] || { name: '约稿记录 (共5张 · 累计稿费 ¥2,180)', commissions: [] };
+    const firstGroup = groups[0] || { name: '约稿记录 (共0张 · 累计稿费 ¥0)', commissions: [] };
 
     wrap.innerHTML = `
       <div class="char-dossier-card card-stagger">
         <div class="char-top-row">
-          <div style="width:74px;height:74px;flex-shrink:0;">
-            ${avSvg}
+          <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;border:2.5px solid #5C4B47;box-shadow:0 3px 8px rgba(92,75,71,0.15);flex-shrink:0;cursor:pointer;background:#FFF;" onclick="app.openCharEditModal('${activeChar.id}')" title="点击编辑资料">
+            ${avHtml}
           </div>
           <div style="flex:1;">
             <div style="display:flex;align-items:center;justify-content:space-between;">
-              <span style="font-size:18px;font-weight:900;color:#5C4B47;">${this.escapeHtml(activeChar.name)} ✏️</span>
+              <span style="font-size:18px;font-weight:900;color:#5C4B47;cursor:pointer;" onclick="app.openCharEditModal('${activeChar.id}')">${this.escapeHtml(activeChar.name)} ✏️</span>
               <span class="badge-chip badge-primary" onclick="app.openCharProfile('${activeChar.id}')" style="cursor:pointer;font-weight:900;">设子详情 ›</span>
             </div>
             <div class="char-tags-wrap" style="margin-top:6px;">
@@ -1032,7 +1026,7 @@ class AppController {
             <div class="poster-grid-3">
               ${(firstGroup.commissions || []).slice(0, 6).map((comm, cIdx) => `
                 <div class="poster-thumb-wrap" onclick="app.openCharProfile('${activeChar.id}')" style="position:relative;cursor:pointer;">
-                  ${window.ILLUST ? (cIdx % 2 === 0 ? window.createChibiAvatarSvg('#FFF1BD', '#8D6E63', '呆毛', '#FFAB91', '#FFE0BD', '#FF8A65') : window.createBustIllustSvg('#FFCDD2', '晚霞', '日落')) : ''}
+                  ${comm.image ? `<img src="${comm.image}" style="width:100%;height:100%;object-fit:cover;" />` : (window.ILLUST ? (cIdx % 2 === 0 ? window.createChibiAvatarSvg('#FFF1BD', '#8D6E63', '呆毛', '#FFAB91', '#FFE0BD', '#FF8A65') : window.createBustIllustSvg('#FFCDD2', '晚霞', '日落')) : '')}
                   <span style="position:absolute;bottom:4px;right:4px;background:rgba(255,255,255,0.92);border:1.5px solid #5C4B47;border-radius:99px;font-size:10px;font-weight:900;color:#5C4B47;padding:1px 5px;box-shadow:0 1px 3px rgba(92,75,71,0.15);">¥${comm.price || (cIdx % 2 === 0 ? 150 : 380)}</span>
                 </div>
               `).join('')}
@@ -1091,12 +1085,12 @@ class AppController {
     this.renderGalleryImages();
   }
 
-  deleteSelectedGalleryImages() {
+  async deleteSelectedGalleryImages() {
     if (this.selectedImageIds.size === 0) {
       this.showToast('请先选择要删除的图片');
       return;
     }
-    if (!confirm(`确定要删除选中的 ${this.selectedImageIds.size} 张图片吗？`)) return;
+    if (!await this.showConfirm({ title: '批量删除图片', message: `确定要删除选中的 ${this.selectedImageIds.size} 张图片吗？`, danger: true })) return;
 
     window.store.data.galleryImages = window.store.data.galleryImages.filter(
       img => !this.selectedImageIds.has(img.id)
@@ -1128,8 +1122,8 @@ class AppController {
     this.showToast(`成功导入 ${fileList.length} 张画作`);
   }
 
-  createFolderPrompt() {
-    const name = prompt('请输入新文件夹名称：');
+  async createFolderPrompt() {
+    const name = await this.showPrompt({ title: '新建画作文件夹', message: '请输入新文件夹名称：', placeholder: '如：摸鱼/正比/立绘' });
     if (name && name.trim()) {
       window.store.data.folders.push({
         id: 'f_' + Date.now(),
@@ -1139,11 +1133,11 @@ class AppController {
       });
       window.store.persist();
       this.renderGalleryFolders();
-      this.showToast('文件夹已创建');
+      this.showToast(`文件夹「${name.trim()}」已创建 ✨`);
     }
   }
 
-  // ================= 6. 角色档案详情 (点名编辑、约稿累加) =================
+  // ================= 6. 角色档案详情 (点名编辑、设子管理、约稿累加) =================
 
   openCharProfile(charId) {
     this.activeCharId = charId;
@@ -1166,11 +1160,11 @@ class AppController {
             ${this.getCharAvatarHtml(char)}
           </div>
           <div style="flex:1;">
-            <div class="char-name-editable" onclick="app.editCharNamePrompt('${char.id}')">
+            <div class="char-name-editable" onclick="app.openCharEditModal('${char.id}')">
               ${this.escapeHtml(char.name)}
               <span style="font-size:14px;color:var(--primary);">${getIcon('edit', 16)}</span>
             </div>
-            <div class="char-tags-wrap">
+            <div class="char-tags-wrap" onclick="app.openCharEditModal('${char.id}')" style="cursor:pointer;">
               ${char.gender ? `<span class="badge-chip badge-primary">${char.gender}</span>` : ''}
               ${char.height ? `<span class="badge-chip badge-coral">${char.height}</span>` : ''}
               ${char.age ? `<span class="badge-chip badge-green">${char.age}</span>` : ''}
@@ -1179,19 +1173,29 @@ class AppController {
           </div>
         </div>
 
+        <!-- 资料操作快捷键 -->
+        <div style="display:flex;gap:10px;margin-top:12px;margin-bottom:12px;">
+          <button class="btn btn-secondary" style="flex:1;padding:7px 12px;font-size:13px;" onclick="app.openCharEditModal('${char.id}')">
+            ✎ 编辑设子资料
+          </button>
+          <button class="btn btn-danger" style="padding:7px 14px;font-size:13px;" onclick="app.confirmDeleteChar('${char.id}')">
+            🗑️ 删除设子
+          </button>
+        </div>
+
         ${char.anchor ? `
-          <div style="font-size:13px;font-weight:700;margin-bottom:8px;background:var(--bg);padding:8px 12px;border-radius:var(--rs);">
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px;background:var(--bg);padding:8px 12px;border-radius:var(--rs);cursor:pointer;" onclick="app.openCharEditModal('${char.id}')">
             <span style="color:var(--primary);font-weight:900;">设定锚点：</span>${this.escapeHtml(char.anchor)}
           </div>` : ''}
         ${char.background ? `
-          <div style="font-size:13px;font-weight:700;margin-bottom:8px;background:var(--bg);padding:8px 12px;border-radius:var(--rs);">
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px;background:var(--bg);padding:8px 12px;border-radius:var(--rs);cursor:pointer;" onclick="app.openCharEditModal('${char.id}')">
             <span style="color:var(--primary);font-weight:900;">背景设定：</span>${this.escapeHtml(char.background)}
           </div>` : ''}
       </div>
 
       <!-- 约稿记录分组与稿费累加 -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:16px;font-weight:900;">
+        <div style="font-size:15px;font-weight:900;">
           约稿记录 · 累计稿费：<span style="color:var(--primary);">¥${totalCost.toLocaleString()}</span>
         </div>
         <button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="app.openBatchCommissionModal('${char.id}')">
@@ -1209,7 +1213,7 @@ class AppController {
             <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:10px;">
               ${(grp.commissions || []).map(comm => `
                 <div class="card" style="padding:10px;margin-bottom:0;" onclick="app.openCommissionDetail('${comm.id}')">
-                  ${comm.image ? `<img src="${comm.image}" class="poster-thumb" style="width:100%;height:120px;margin-bottom:6px;" />` : ''}
+                  ${comm.image ? `<img src="${comm.image}" class="poster-thumb" style="width:100%;height:120px;margin-bottom:6px;object-fit:cover;" />` : ''}
                   <div style="font-weight:900;font-size:13px;">${this.escapeHtml(comm.title)}</div>
                   <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px;">
                     <span style="color:var(--subtext);">${this.escapeHtml(comm.artist || '佚名')}</span>
@@ -1218,7 +1222,7 @@ class AppController {
                 </div>
               `).join('')}
             </div>
-            <button class="btn btn-secondary btn-block" style="margin-top:8px;font-size:12px;" onclick="app.openAddCommissionToGroup('${char.id}', '${grp.id}')">
+            <button class="btn btn-secondary btn-block" style="margin-top:10px;font-size:12.5px;padding:8px 0;" onclick="app.openAddCommissionToGroup('${char.id}', '${grp.id}')">
               ＋ 添加约稿到本组
             </button>
           </div>
@@ -1231,15 +1235,7 @@ class AppController {
   }
 
   editCharNamePrompt(charId) {
-    const char = window.store.data.chars.find(c => c.id === charId);
-    if (!char) return;
-    const newName = prompt('修改角色名称：', char.name);
-    if (newName && newName.trim()) {
-      char.name = newName.trim();
-      window.store.persist();
-      this.openCharProfile(charId);
-      this.renderGalleryChars();
-    }
+    this.openCharEditModal(charId);
   }
 
   async handleCharAvatarUpload(file) {
@@ -1251,6 +1247,8 @@ class AppController {
     window.store.persist();
     this.openCharProfile(this.activeCharId);
     this.renderGalleryChars();
+    this.renderActiveCharDossier();
+    this.showToast('设子头像已更新 ✨');
   }
 
   closeCharProfile() {
@@ -1263,56 +1261,208 @@ class AppController {
   // 获取角色头像 HTML (支持内置矢量插画与自定义图片)
   getCharAvatarHtml(char, extraStyle = '') {
     if (!char) return window.ICONS ? getIcon('user', 36) : '';
-    if (char.avatar === 'illust_rosette' || char.name === '白桃桃') {
+    // 1. 自定义上传头像拥有最高优先级
+    if (char.avatar && (char.avatar.startsWith('data:') || char.avatar.startsWith('http') || char.avatar.startsWith('blob:') || char.avatar.startsWith('/'))) {
+      return `<img src="${char.avatar}" style="width:100%;height:100%;object-fit:cover;${extraStyle}" />`;
+    }
+    // 2. 预设手绘矢量插画头像降级
+    if (char.avatar === 'illust_rosette' || (!char.avatar && char.name === '白桃桃')) {
       return window.ILLUST ? window.ILLUST.whitePeachRosette : (window.ICONS ? getIcon('user', 36) : '');
     }
-    if (char.avatar === 'illust_cat' || char.name === '星野喵') {
+    if (char.avatar === 'illust_cat' || (!char.avatar && char.name === '星野喵')) {
       return window.ILLUST ? window.ILLUST.catAvatar : (window.ICONS ? getIcon('cat', 36) : '');
     }
-    if (char.avatar === 'illust_glasses' || char.name === '雾雨') {
+    if (char.avatar === 'illust_glasses' || (!char.avatar && char.name === '雾雨')) {
       return window.ILLUST ? window.ILLUST.glassesGirl : (window.ICONS ? getIcon('user', 36) : '');
-    }
-    if (char.avatar && (char.avatar.startsWith('data:') || char.avatar.startsWith('http') || char.avatar.startsWith('blob:') || char.avatar.startsWith('/'))) {
-      return `<img src="${char.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;${extraStyle}" />`;
     }
     return window.ICONS ? getIcon('user', 36) : '';
   }
 
-  // 1. 新建设子档案
+  // ================= 设子全能编辑与创建卡片 =================
+
   openCharFormModal() {
-    const name = prompt('请输入新设子/角色名称：');
-    if (!name || !name.trim()) return;
-    const tagStr = prompt('请输入特征标签（用空格或逗号分隔，如：猫耳 双马尾 傲娇）：', '可爱 猫耳 甜心');
-    const tags = tagStr ? tagStr.split(/[\s,，]+/).filter(Boolean) : ['设子'];
-    const newChar = {
-      id: 'char_' + Date.now(),
-      name: name.trim(),
-      avatar: '',
-      gender: '女',
-      height: '160cm',
-      age: '16岁',
-      birthday: '1月1日',
-      anchor: '初创设定',
-      background: '暂无背景',
-      story: '',
-      tags: tags,
-      groups: [
-        {
-          id: 'grp_' + Date.now(),
-          name: '约稿记录 (共0张 · 累计稿费 ¥0)',
-          commissions: []
-        }
-      ]
-    };
-    window.store.data.chars.push(newChar);
-    window.store.persist();
-    this.activeCharId = newChar.id;
-    this.renderGalleryChars();
-    this.renderActiveCharDossier();
-    this.showToast(`设子「${newChar.name}」已创建 ✨`);
+    this.openCharEditModal(null);
   }
 
-  // 2. 展开/折叠约稿分组
+  openCharEditModal(charId = null) {
+    this.editingCharId = charId;
+    const modal = document.getElementById('charEditModal');
+    if (!modal) return;
+
+    const titleEl = document.getElementById('charEditModalTitle');
+    const nameInput = document.getElementById('charEditNameInput');
+    const heightInput = document.getElementById('charEditHeightInput');
+    const ageInput = document.getElementById('charEditAgeInput');
+    const bdayInput = document.getElementById('charEditBirthdayInput');
+    const tagsInput = document.getElementById('charEditTagsInput');
+    const anchorInput = document.getElementById('charEditAnchorInput');
+    const bgInput = document.getElementById('charEditBackgroundInput');
+    const delSec = document.getElementById('charEditDeleteSection');
+
+    let char = null;
+    if (charId) {
+      char = window.store.data.chars.find(c => c.id === charId);
+    }
+
+    if (char) {
+      titleEl.textContent = `编辑设子 · ${char.name}`;
+      nameInput.value = char.name || '';
+      heightInput.value = char.height || '';
+      ageInput.value = char.age || '';
+      bdayInput.value = char.birthday || '';
+      tagsInput.value = (char.tags || []).join(' ');
+      anchorInput.value = char.anchor || '';
+      bgInput.value = char.background || char.story || '';
+      this.editingCharAvatarData = char.avatar || '';
+      this.setCharEditGender(char.gender || '女');
+      if (delSec) delSec.style.display = 'block';
+    } else {
+      titleEl.textContent = '新建设子档案';
+      nameInput.value = '';
+      heightInput.value = '';
+      ageInput.value = '';
+      bdayInput.value = '';
+      tagsInput.value = '可爱 甜心';
+      anchorInput.value = '';
+      bgInput.value = '';
+      this.editingCharAvatarData = '';
+      this.setCharEditGender('女');
+      if (delSec) delSec.style.display = 'none';
+    }
+
+    this.updateCharEditAvatarPreview(char ? char.name : '');
+    modal.classList.add('modal-open');
+    window.store.pushBackHandler(() => this.closeCharEditModal());
+  }
+
+  updateCharEditAvatarPreview(charName = '') {
+    const preview = document.getElementById('charEditAvatarPreview');
+    if (!preview) return;
+    const dummyChar = { avatar: this.editingCharAvatarData, name: charName };
+    preview.innerHTML = this.getCharAvatarHtml(dummyChar);
+  }
+
+  setCharEditGender(gender) {
+    const pills = document.querySelectorAll('#charEditGenderPills .pill-chip-btn');
+    pills.forEach(p => {
+      p.classList.toggle('active', p.getAttribute('data-gender') === gender);
+    });
+    const hidden = document.getElementById('charEditGenderInput');
+    if (hidden) hidden.value = gender;
+  }
+
+  async handleCharEditAvatarUpload(file) {
+    if (!file) return;
+    this.showToast('正在压缩设子头像...');
+    const res = await window.store.compressImage(file, 800, 0.72);
+    this.editingCharAvatarData = res.data;
+    const name = document.getElementById('charEditNameInput')?.value || '';
+    this.updateCharEditAvatarPreview(name);
+    this.showToast('头像预览已更新');
+  }
+
+  resetCharEditAvatarPreset() {
+    this.editingCharAvatarData = '';
+    const name = document.getElementById('charEditNameInput')?.value || '';
+    this.updateCharEditAvatarPreview(name);
+    this.showToast('已恢复预设插画立绘');
+  }
+
+  closeCharEditModal() {
+    const modal = document.getElementById('charEditModal');
+    if (modal) modal.classList.remove('modal-open');
+  }
+
+  saveCharEditModal() {
+    const nameInput = document.getElementById('charEditNameInput');
+    const name = nameInput ? nameInput.value.trim() : '';
+    if (!name) {
+      this.showToast('请输入设子名称');
+      return;
+    }
+
+    const gender = document.getElementById('charEditGenderInput')?.value || '女';
+    const height = document.getElementById('charEditHeightInput')?.value.trim() || '';
+    const age = document.getElementById('charEditAgeInput')?.value.trim() || '';
+    const birthday = document.getElementById('charEditBirthdayInput')?.value.trim() || '';
+    const tagStr = document.getElementById('charEditTagsInput')?.value.trim() || '';
+    const tags = tagStr ? tagStr.split(/[\s,，]+/).filter(Boolean) : ['设子'];
+    const anchor = document.getElementById('charEditAnchorInput')?.value.trim() || '';
+    const background = document.getElementById('charEditBackgroundInput')?.value.trim() || '';
+
+    if (this.editingCharId) {
+      const char = window.store.data.chars.find(c => c.id === this.editingCharId);
+      if (char) {
+        char.name = name;
+        char.gender = gender;
+        char.height = height;
+        char.age = age;
+        char.birthday = birthday;
+        char.tags = tags;
+        char.anchor = anchor;
+        char.background = background;
+        char.avatar = this.editingCharAvatarData;
+      }
+    } else {
+      const newChar = {
+        id: 'char_' + Date.now(),
+        name: name,
+        avatar: this.editingCharAvatarData,
+        gender: gender,
+        height: height || '160cm',
+        age: age || '16岁',
+        birthday: birthday || '1月1日',
+        anchor: anchor,
+        background: background,
+        story: '',
+        tags: tags,
+        groups: [
+          {
+            id: 'grp_' + Date.now(),
+            name: '约稿记录 (共0张 · 累计稿费 ¥0)',
+            commissions: []
+          }
+        ]
+      };
+      window.store.data.chars.push(newChar);
+      this.activeCharId = newChar.id;
+    }
+
+    window.store.persist();
+    this.closeCharEditModal();
+    this.renderGalleryChars();
+    this.renderActiveCharDossier();
+    if (this.currentSubView === 'charDetail' && this.activeCharId) {
+      this.openCharProfile(this.activeCharId);
+    }
+    this.showToast(`设子「${name}」资料已保存 ✨`);
+  }
+
+  async confirmDeleteChar(charId) {
+    if (!charId) return;
+    const char = window.store.data.chars.find(c => c.id === charId);
+    if (!char) return;
+
+    const confirmed = await this.showConfirm({
+      title: '删除设子档案',
+      message: `确定要彻底删除设子「${char.name}」吗？\n删除后该角色的所有设定与约稿记录都将一并清除，无法找回。`,
+      danger: true
+    });
+    if (!confirmed) return;
+
+    window.store.data.chars = window.store.data.chars.filter(c => c.id !== charId);
+    if (this.activeCharId === charId) {
+      this.activeCharId = window.store.data.chars[0]?.id || null;
+    }
+    window.store.persist();
+    this.closeCharEditModal();
+    this.closeCharProfile();
+    this.renderGalleryChars();
+    this.renderActiveCharDossier();
+    this.showToast(`已删除设子「${char.name}」`);
+  }
+
+  // 展开/折叠约稿分组
   toggleGroupCollapse(grpId) {
     const el = document.getElementById(`grpContent_${grpId}`);
     if (el) {
@@ -1321,11 +1471,17 @@ class AppController {
     }
   }
 
-  // 3. 批量导入约稿到角色
-  openBatchCommissionModal(charId) {
+  // 批量导入约稿到角色
+  async openBatchCommissionModal(charId) {
     const char = window.store.data.chars.find(c => c.id === charId);
     if (!char) return;
-    const countStr = prompt(`为角色「${char.name}」快速批量导入约稿记录，请输入数量（1-5）：`, '2');
+    const countStr = await this.showPrompt({
+      title: '批量导入约稿',
+      message: `为角色「${char.name}」快速批量导入约稿记录，请输入数量（1-5）：`,
+      defaultValue: '2',
+      placeholder: '请输入1至5的数字'
+    });
+    if (!countStr) return;
     const count = parseInt(countStr, 10);
     if (!count || count <= 0) return;
     if (!char.groups || char.groups.length === 0) {
@@ -1351,8 +1507,8 @@ class AppController {
     this.showToast(`已批量添加 ${count} 笔约稿记录 ✨`);
   }
 
-  // 4. 查看具体某笔约稿详情
-  openCommissionDetail(commId) {
+  // 查看具体某笔约稿详情
+  async openCommissionDetail(commId) {
     let foundComm = null;
     let foundChar = null;
     for (const c of window.store.data.chars) {
@@ -1370,34 +1526,72 @@ class AppController {
       this.showToast('未找到该约稿记录');
       return;
     }
-    alert(`约稿详情：\n标题：${foundComm.title}\n所属角色：${foundChar ? foundChar.name : '-'}\n画师：${foundComm.artist || '佚名'}\n稿酬：¥${foundComm.price || 0}\n备注：${foundComm.note || '无'}\n日期：${foundComm.date || '-'}`);
+    await this.showConfirm({
+      title: `约稿详情 · ${foundComm.title}`,
+      message: `所属设子：${foundChar ? foundChar.name : '-'}\n画师昵称：${foundComm.artist || '佚名'}\n稿酬金额：¥${foundComm.price || 0}\n备注说明：${foundComm.note || '无'}\n创建日期：${foundComm.date || '-'}`,
+      confirmText: '我知道啦',
+      cancelText: '关闭'
+    });
   }
 
-  // 5. 单独添加一笔约稿到分组
+  // 单独添加一笔约稿到分组 (弹出专属模态框)
   openAddCommissionToGroup(charId, grpId) {
     const char = window.store.data.chars.find(c => c.id === charId);
     if (!char) return;
-    const grp = (char.groups || []).find(g => g.id === grpId);
+    this.addingCommCharId = charId;
+    this.addingCommGrpId = grpId;
+
+    const modal = document.getElementById('charAddCommissionModal');
+    if (!modal) return;
+
+    document.getElementById('charAddCommTitleInput').value = `${char.name} · 梦幻立绘`;
+    document.getElementById('charAddCommArtistInput').value = '特邀画师';
+    document.getElementById('charAddCommPriceInput').value = '300';
+    document.getElementById('charAddCommNoteInput').value = '新增约稿';
+
+    modal.classList.add('modal-open');
+    window.store.pushBackHandler(() => this.closeCharAddCommissionModal());
+  }
+
+  closeCharAddCommissionModal() {
+    const modal = document.getElementById('charAddCommissionModal');
+    if (modal) modal.classList.remove('modal-open');
+  }
+
+  saveCharAddCommission() {
+    if (!this.addingCommCharId || !this.addingCommGrpId) return;
+    const char = window.store.data.chars.find(c => c.id === this.addingCommCharId);
+    if (!char) return;
+    const grp = (char.groups || []).find(g => g.id === this.addingCommGrpId);
     if (!grp) return;
-    const title = prompt('请输入新约稿作品名称：', `${char.name} · 梦幻立绘`);
-    if (!title || !title.trim()) return;
-    const artist = prompt('请输入画师名称：', '神秘画师');
-    const priceStr = prompt('请输入稿费金额 (元)：', '300');
-    const price = parseInt(priceStr, 10) || 0;
+
+    const titleInput = document.getElementById('charAddCommTitleInput');
+    const title = titleInput ? titleInput.value.trim() : '';
+    if (!title) {
+      this.showToast('请输入约稿标题');
+      return;
+    }
+
+    const artist = document.getElementById('charAddCommArtistInput')?.value.trim() || '佚名';
+    const price = parseInt(document.getElementById('charAddCommPriceInput')?.value, 10) || 0;
+    const note = document.getElementById('charAddCommNoteInput')?.value.trim() || '';
 
     grp.commissions.push({
       id: 'comm_' + Date.now(),
-      title: title.trim(),
-      artist: artist ? artist.trim() : '佚名',
+      title: title,
+      artist: artist,
       price: price,
-      note: '新增约稿',
+      note: note,
       image: '',
       date: new Date().toISOString().split('T')[0]
     });
+
     const totalGroupCost = grp.commissions.reduce((s, c) => s + (c.price || 0), 0);
     grp.name = `约稿记录 (共${grp.commissions.length}张 · 累计稿费 ¥${totalGroupCost.toLocaleString()})`;
     window.store.persist();
-    this.openCharProfile(charId);
+
+    this.closeCharAddCommissionModal();
+    this.openCharProfile(this.addingCommCharId);
     this.renderActiveCharDossier();
     this.showToast('约稿已成功添加到分组 ✨');
   }
@@ -1911,7 +2105,7 @@ class AppController {
   async importBackupZip(file) {
     if (!file) return;
     if (file.size > 120 * 1024 * 1024) {
-      if (!confirm('提示：该备份文件超过 120MB，导入可能需要较多内存，是否继续？')) return;
+      if (!await this.showConfirm({ title: '大文件导入提示', message: '该备份文件超过 120MB，导入可能需要较多内存，是否继续？' })) return;
     }
 
     this.showToast('正在解析 ZIP 备份文件...');
@@ -1920,7 +2114,7 @@ class AppController {
 
     const jsonFile = loaded.file('yaohuaji_data.json');
     if (!jsonFile) {
-      alert('备份包中未发现合法的 yaohuaji_data.json 文件！');
+      this.showToast('备份包中未发现合法的 yaohuaji_data.json 文件！');
       return;
     }
 
@@ -1949,12 +2143,20 @@ class AppController {
     this.showToast('备份导入并安全合并完成！');
   }
 
-  clearAllDataConfirm() {
-    if (prompt('警告：清空后无法找回！请输入 "清空数据" 确认：') === '清空数据') {
+  async clearAllDataConfirm() {
+    const res = await this.showPrompt({
+      title: '⚠️ 危险操作：清空全部数据',
+      message: '警告：清空后所有本地设子、稿单、画作都无法找回！\n请输入 "清空数据" 确认：',
+      placeholder: '清空数据',
+      danger: true
+    });
+    if (res === '清空数据') {
       localStorage.clear();
       window.store.data = JSON.parse(JSON.stringify(DEFAULT_DATA));
       window.store.persist();
       location.reload();
+    } else if (res !== null) {
+      this.showToast('输入的确认文字不一致，操作已取消');
     }
   }
 
@@ -2042,7 +2244,7 @@ class AppController {
     return Math.ceil((end - now) / 86400000);
   }
 
-  showToast(msg) {
+  showToast(msg, duration = 2400) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
     const div = document.createElement('div');
@@ -2050,9 +2252,96 @@ class AppController {
     div.textContent = msg;
     container.appendChild(div);
     setTimeout(() => {
-      div.style.opacity = '0';
-      setTimeout(() => div.remove(), 300);
-    }, 2200);
+      div.classList.add('toast-out');
+      setTimeout(() => div.remove(), 350);
+    }, duration);
+  }
+
+  showConfirm({ title = '确认操作', message = '', icon = '🌸', confirmText = '确定', cancelText = '取消', danger = false } = {}) {
+    return new Promise(resolve => {
+      const modal = document.getElementById('customConfirmModal');
+      const titleEl = document.getElementById('confirmModalTitle');
+      const msgEl = document.getElementById('confirmModalMessage');
+      const iconEl = document.getElementById('confirmIconBox');
+      const cancelBtn = document.getElementById('confirmModalCancelBtn');
+      const okBtn = document.getElementById('confirmModalOkBtn');
+      if (!modal) {
+        resolve(window.confirm(message));
+        return;
+      }
+      titleEl.textContent = title;
+      msgEl.textContent = message;
+      iconEl.textContent = danger ? '⚠️' : icon;
+      cancelBtn.textContent = cancelText;
+      okBtn.textContent = confirmText;
+      if (danger) {
+        okBtn.className = 'btn btn-danger';
+        okBtn.style.flex = '1';
+      } else {
+        okBtn.className = 'btn btn-primary';
+        okBtn.style.flex = '1';
+      }
+
+      const cleanup = (val) => {
+        modal.classList.remove('modal-open');
+        cancelBtn.onclick = null;
+        okBtn.onclick = null;
+        resolve(val);
+      };
+
+      cancelBtn.onclick = () => cleanup(false);
+      okBtn.onclick = () => cleanup(true);
+      modal.classList.add('modal-open');
+    });
+  }
+
+  showPrompt({ title = '请输入', message = '', defaultValue = '', placeholder = '', confirmText = '确定', cancelText = '取消', danger = false } = {}) {
+    return new Promise(resolve => {
+      const modal = document.getElementById('customPromptModal');
+      const titleEl = document.getElementById('promptModalTitle');
+      const msgEl = document.getElementById('promptModalMessage');
+      const inputEl = document.getElementById('promptModalInput');
+      const closeBtn = document.getElementById('promptModalCloseBtn');
+      const cancelBtn = document.getElementById('promptModalCancelBtn');
+      const okBtn = document.getElementById('promptModalOkBtn');
+      if (!modal) {
+        resolve(window.prompt(message, defaultValue));
+        return;
+      }
+      titleEl.textContent = title;
+      msgEl.textContent = message;
+      inputEl.value = defaultValue || '';
+      inputEl.placeholder = placeholder || '';
+      cancelBtn.textContent = cancelText;
+      okBtn.textContent = confirmText;
+      if (danger) {
+        okBtn.className = 'btn btn-danger';
+        okBtn.style.flex = '1';
+      } else {
+        okBtn.className = 'btn btn-primary';
+        okBtn.style.flex = '1';
+      }
+
+      const cleanup = (val) => {
+        modal.classList.remove('modal-open');
+        closeBtn.onclick = null;
+        cancelBtn.onclick = null;
+        okBtn.onclick = null;
+        inputEl.onkeydown = null;
+        resolve(val);
+      };
+
+      closeBtn.onclick = () => cleanup(null);
+      cancelBtn.onclick = () => cleanup(null);
+      okBtn.onclick = () => cleanup(inputEl.value);
+      inputEl.onkeydown = (e) => {
+        if (e.key === 'Enter') cleanup(inputEl.value);
+        if (e.key === 'Escape') cleanup(null);
+      };
+
+      modal.classList.add('modal-open');
+      setTimeout(() => inputEl.focus(), 150);
+    });
   }
 
   escapeHtml(str) {

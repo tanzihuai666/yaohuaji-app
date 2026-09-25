@@ -299,17 +299,20 @@ html, body {
   }
 }
 
-/* 自定义背景图层 (独立于主题) */
+/* 自定义背景图层 (位于 appRoot 内部最底层，独立于主题) */
 #customBgLayer {
   position: absolute;
   top: 0;
   left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   background-size: cover;
   background-position: center;
+  background-repeat: no-repeat;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -387,6 +390,8 @@ html, body {
 
 /* 中间滚动内容容器 */
 .app-main-content {
+  position: relative;
+  z-index: 2;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -606,6 +611,7 @@ html, body {
 }
 
 .greeting-avatar {
+  position: relative;
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -615,8 +621,43 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 2px 6px rgba(92, 75, 71, 0.12);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring);
+}
+
+.greeting-avatar:active {
+  transform: scale(0.92);
+}
+
+.greeting-avatar-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.greeting-avatar-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #FFFFFF;
+  border: 1.5px solid #5C4B47;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
 }
 
 .greeting-info {
@@ -947,8 +988,9 @@ html, body {
   border-radius: 22px;
   border: 2px solid #5C4B47;
   box-shadow: 0 4px 14px rgba(92, 75, 71, 0.08);
-  padding: 16px;
+  padding: 14px 10px;
   margin-bottom: 16px;
+  box-sizing: border-box;
 }
 
 .calendar-header {
@@ -956,6 +998,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  padding: 0 4px;
 }
 
 .calendar-month-title {
@@ -982,46 +1025,55 @@ html, body {
 
 .calendar-weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
   text-align: center;
   font-size: 11px;
   font-weight: 900;
   color: #8D7B74;
   margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .calendar-days-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .calendar-day-cell {
-  aspect-ratio: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
   cursor: pointer;
+  padding: 2px 0;
+  box-sizing: border-box;
 }
 
 .calendar-day-cell.other-month {
   opacity: 0.25;
+  pointer-events: none;
 }
 
 .calendar-date-pill {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: #5C4B47;
   background: #F7EFE7;
   transition: all 0.2s var(--ease-spring);
+  box-sizing: border-box;
 }
 
 .calendar-day-cell.selected .calendar-date-pill {
@@ -1032,16 +1084,16 @@ html, body {
 
 .calendar-day-dots {
   display: flex;
-  gap: 3px;
-  height: 6px;
-  margin-top: 3px;
+  gap: 2px;
+  height: 5px;
+  margin-top: 2px;
   align-items: center;
   justify-content: center;
 }
 
 .dot-indicator {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
 }
 .dot-start {
@@ -1749,6 +1801,30 @@ html, body {
   object-fit: cover;
   border-radius: inherit;
   z-index: 1;
+  background-color: #1F1924;
+}
+
+/* 彻底隐藏移动端 WebView 原生视频控制与默认巨大播放按键 */
+.splash-video::-webkit-media-controls {
+  display: none !important;
+}
+.splash-video::-webkit-media-controls-enclosure {
+  display: none !important;
+}
+.splash-video::-webkit-media-controls-panel {
+  display: none !important;
+}
+.splash-video::-webkit-media-controls-play-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+.splash-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+}
+.splash-video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none !important;
 }
 
 .splash-top-bar {

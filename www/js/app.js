@@ -58,11 +58,16 @@ class AppController {
     }
 
     if (video) {
+      video.muted = true;
+      video.setAttribute('muted', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
       video.addEventListener('ended', dismissSplash);
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => {
-          console.log('Video autoplay interrupted or waiting interaction:', err);
+          console.warn('Video autoplay interrupted or waiting interaction:', err);
+          setTimeout(dismissSplash, 800);
         });
       }
     }
@@ -213,6 +218,27 @@ class AppController {
 
   // ================= 1. 首页 Dashboard =================
 
+  // 画手头像 HTML 生成器 (支持自定义上传图片、精美插画与备用矢量)
+  getArtistAvatarHtml(s, size = 60) {
+    if (s && s.avatar) {
+      return `<img src="${s.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
+    }
+    if (window.ILLUST && window.ILLUST.artistAvatar) {
+      return window.ILLUST.artistAvatar;
+    }
+    return getIcon('bear', size);
+  }
+
+  // 渲染带编辑徽标的画手头像
+  renderAvatarWithBadge(avatarEl, s) {
+    if (!avatarEl) return;
+    const innerHtml = this.getArtistAvatarHtml(s, 56);
+    avatarEl.innerHTML = `
+      <div class="greeting-avatar-inner">${innerHtml}</div>
+      <div class="greeting-avatar-badge" title="更换头像">✎</div>
+    `;
+  }
+
   renderHome() {
     const s = window.store.data.settings;
     const orders = window.store.data.orders;
@@ -221,13 +247,7 @@ class AppController {
     // 顶部问候卡
     const avatarEl = document.getElementById('homeAvatar');
     if (avatarEl) {
-      if (s.avatar) {
-        avatarEl.innerHTML = `<img src="${s.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
-      } else if (window.ILLUST) {
-        avatarEl.innerHTML = window.ILLUST.artistAvatar;
-      } else {
-        avatarEl.innerHTML = getIcon('bear', 46);
-      }
+      this.renderAvatarWithBadge(avatarEl, s);
     }
     const nameEl = document.getElementById('homeNick');
     if (nameEl) nameEl.textContent = s.nickname || '画手小妖';
@@ -1341,7 +1361,7 @@ class AppController {
     wrap.innerHTML = `
       <div class="poster-header">
         <div class="poster-avatar-wrap">
-          ${s.avatar ? `<img src="${s.avatar}" style="width:100%;height:100%;object-fit:cover;" />` : (window.ILLUST ? window.ILLUST.artistAvatar : getIcon('bear', 48))}
+          ${this.getArtistAvatarHtml(s, 48)}
         </div>
         <div class="poster-artist-name">${this.escapeHtml(s.nickname || '画手小妖')}</div>
         <div class="poster-badge">${this.escapeHtml(p.title || '画风展示 & 约稿价目表')}</div>
@@ -1547,11 +1567,7 @@ class AppController {
     const s = window.store.data.settings;
     const avatarEl = document.getElementById('mineAvatar');
     if (avatarEl) {
-      if (s.avatar) {
-        avatarEl.innerHTML = `<img src="${s.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
-      } else {
-        avatarEl.innerHTML = getIcon('bear', 46);
-      }
+      this.renderAvatarWithBadge(avatarEl, s);
     }
     const nickEl = document.getElementById('mineNick');
     if (nickEl) nickEl.textContent = s.nickname || '画手小妖';
@@ -1588,13 +1604,77 @@ class AppController {
       `).join('');
     }
 
+    this.updateSettingsProfileUI();
+
     const opacitySlider = document.getElementById('customBgOpacity');
     if (opacitySlider) {
       opacitySlider.value = window.store.data.settings.customBgOpacity || 0.35;
     }
 
+    const bgThumb = document.getElementById('customBgThumbWrap');
+    if (bgThumb) {
+      if (window.store.data.settings.customBg) {
+        bgThumb.style.display = 'block';
+        bgThumb.style.backgroundImage = `url(${window.store.data.settings.customBg})`;
+      } else {
+        bgThumb.style.display = 'none';
+      }
+    }
+
     modal.classList.add('modal-open');
     window.store.pushBackHandler(() => this.closeThemesSubView());
+  }
+
+  updateSettingsProfileUI() {
+    const s = window.store.data.settings;
+    const preview = document.getElementById('settingsAvatarPreview');
+    if (preview) {
+      preview.innerHTML = this.getArtistAvatarHtml(s, 56);
+    }
+    const nickInput = document.getElementById('settingsNickInput');
+    if (nickInput) nickInput.value = s.nickname || '画手小妖';
+    const sloganInput = document.getElementById('settingsSloganInput');
+    if (sloganInput) sloganInput.value = s.slogan || '今天也要开开心心画画呀~';
+  }
+
+  triggerUserAvatarUpload() {
+    const input = document.getElementById('userAvatarFileInput');
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  }
+
+  async handleUserAvatarUpload(file) {
+    if (!file) return;
+    try {
+      this.showToast('正在裁剪压缩头像...');
+      const res = await window.store.compressImage(file, 400, 0.85);
+      window.store.data.settings.avatar = res.data;
+      await window.store.persist();
+      this.renderHome();
+      this.renderMine();
+      this.updateSettingsProfileUI();
+      this.showToast('头像更新成功！');
+    } catch (e) {
+      console.error('Avatar upload failed:', e);
+      this.showToast('头像更新失败，请重试');
+    }
+  }
+
+  handleUserNickChange(val) {
+    if (!val || !val.trim()) return;
+    window.store.data.settings.nickname = val.trim();
+    window.store.persist();
+    this.renderHome();
+    this.renderMine();
+  }
+
+  handleUserSloganChange(val) {
+    window.store.data.settings.slogan = (val || '').trim();
+    window.store.persist();
+    this.renderHome();
+    this.renderMine();
   }
 
   selectTheme(themeId) {
@@ -1604,15 +1684,25 @@ class AppController {
     this.showToast('主题切换成功！');
   }
 
-  handleCustomBgUpload(file) {
+  async handleCustomBgUpload(file) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      window.store.applyCustomBg(e.target.result, 0.35);
-      window.store.persist();
+    try {
+      this.showToast('正在处理自定义背景图...');
+      const res = await window.store.compressImage(file, 1280, 0.75);
+      const opacity = Number(document.getElementById('customBgOpacity')?.value || 0.35);
+      window.store.applyCustomBg(res.data, opacity);
+      await window.store.persist();
+
+      const bgThumb = document.getElementById('customBgThumbWrap');
+      if (bgThumb) {
+        bgThumb.style.display = 'block';
+        bgThumb.style.backgroundImage = `url(${res.data})`;
+      }
       this.showToast('自定义背景已更新！');
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+      console.error('Custom bg upload error:', e);
+      this.showToast('背景图上传失败，请重试');
+    }
   }
 
   handleCustomBgOpacityChange(val) {
@@ -1623,6 +1713,8 @@ class AppController {
   clearCustomBg() {
     window.store.applyCustomBg('', 0);
     window.store.persist();
+    const bgThumb = document.getElementById('customBgThumbWrap');
+    if (bgThumb) bgThumb.style.display = 'none';
     this.showToast('已恢复默认背景');
   }
 

@@ -58,16 +58,17 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
-          tag_name: v1.0.0
-          name: 妖画集 · 正式体验版 (v1.0.0)
+          tag_name: v1.0.1
+          name: 妖画集 · 体验修复优化版 (v1.0.1)
           body: |
-            ### 🌸 《妖画集》离线手账画库 Android 安装包
-            - **版本**：v1.0.0
-            - **特性**：
-              - 100% 离线纯净可用、零广告、无网络追踪
-              - 全新 1.1s 巫女与鸟唯美开屏画卷
-              - 神社夕阳定制 App 图标与自适应圆角图标
-              - 设子档案管理、约稿全流程推进、12个月收支账本、9套马卡龙配色
+            ### 🌸 《妖画集》离线手账画库 Android 安装包 (v1.0.1)
+            - **版本**：v1.0.1
+            - **本次修复与优化**：
+              - 🎬 **开屏极速自播**：解除 Android WebView 手势限制，隐藏原生黑圆播放键，无缝自动播放 1.1s 开屏画卷；
+              - 📅 **日历排版修复**：解决手机端周六列越界溢出，采用自适应布局与圆环胶囊，适配全机型；
+              - 🎨 **画手头像自定义**：支持点击头像直接更换图片，相册选图自动智能高保真压缩保存；
+              - 🖼️ **自定义背景激活**：背景图层深度重构，完美支持个人壁纸上传与透明度微调；
+              - 🧹 **我的页面精简**：按需移除开屏重播卡与纯净承诺卡，界面清爽聚焦。
           files: android/app/build/outputs/apk/debug/app-debug.apk
           fail_on_unmatched_files: false
         env:

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#FAF7F2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="妖画集 · 离线可用、无广告、无网络请求的画师约稿与角色画集管理工具">
+  <title>妖画集</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="theme-pastel">
+
+  <!-- 自定义背景图层 (独立于主题) -->
+  <div id="customBgLayer"></div>
+
+  <!-- 主应用容器 -->
+  <div id="appRoot">
+
+    <!-- 开屏动画视频遮罩 (1.1s 高清极速唯美动画，支持跳过与平滑淡出) -->
+    <div id="appSplashOverlay">
+      <video id="splashVideo" class="splash-video" src="assets/splash_video.mp4" autoplay muted playsinline></video>
+      <div class="splash-top-bar">
+        <button class="splash-skip-btn" id="splashSkipBtn">跳过</button>
+      </div>
+      <div class="splash-bottom-bar">
+        <img src="assets/app_icon.png" class="splash-app-icon" alt="妖画集" />
+        <div class="splash-title-wrap">
+          <div class="splash-title">妖画集 · YAOHUAJI</div>
+          <div class="splash-subtitle">二次元约稿手账 · 离线纯净画库</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 顶部固定 Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="header-date" id="headerDate">9月25日 星期四</span>
+        <h1 class="header-title">妖画集</h1>
+      </div>
+      <div class="header-actions">
+        <button class="header-icon-btn" onclick="app.showToast('🔔 暂无新的约稿提醒~')" title="系统通知">
+          <span style="display:inline-flex;width:24px;height:24px;" id="headerBellIcon"></span>
+        </button>
+        <button class="header-icon-btn" onclick="app.openThemesSubView()" title="切换主题">
+          <span style="display:inline-flex;width:20px;height:20px;">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="24" r="18" fill="var(--card-yellow)" stroke="var(--ik-dark)" stroke-width="3"/>
+              <path d="M12 24C12 17.4 17.4 12 24 12V36C17.4 36 12 30.6 12 24Z" fill="var(--primary)"/>
+            </svg>
+          </span>
+        </button>
+        <button class="header-icon-btn" onclick="app.openPriceListSubView()" title="稿条价目表">
+          <span style="display:inline-flex;width:20px;height:20px;">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="8" width="28" height="32" rx="4" fill="var(--card-pink)" stroke="var(--ik-dark)" stroke-width="3"/>
+              <path d="M16 16H32M16 24H28" stroke="var(--ik-dark)" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 中间主滚动内容区 -->
+    <main class="app-main-content">
+
+      <!-- ================= 1. 首页 Dashboard ================= -->
+      <section id="view-home" class="tab-view">
+        <!-- 问候标语卡片 -->
+        <div class="greeting-card card-stagger" onclick="app.openThemesSubView()">
+          <div class="greeting-avatar" id="homeAvatar"></div>
+          <div class="greeting-info">
+            <div class="greeting-name" id="homeNick">画手小妖</div>
+            <div class="greeting-slogan-badge">
+              <span>✦</span>
+              <span id="homeSlogan">今天也要开开心心画画呀~</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2x2 贴纸数据卡 -->
+        <div class="dashboard-grid card-stagger">
+          <div class="data-card data-card-1" id="cardDashOrders">
+            <div class="data-card-header">
+              <span class="data-card-title">总接单</span>
+              <span style="display:inline-flex;width:26px;height:26px;">
+                <svg viewBox="0 0 48 48" fill="none"><rect x="10" y="6" width="28" height="36" rx="5" fill="#FFF" stroke="#4A3E3D" stroke-width="3"/><path d="M18 16H30M18 24H30" stroke="#FF8DA1" stroke-width="3.5" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+            <div class="data-card-val" id="dashTotalOrders">0</div>
+          </div>
+
+          <div class="data-card data-card-2" id="cardDashWallet">
+            <div class="data-card-header">
+              <span class="data-card-title">钱包收入</span>
+              <span style="display:inline-flex;width:26px;height:26px;">
+                <svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="17" fill="#FFE599" stroke="#4A3E3D" stroke-width="3"/><text x="24" y="30" font-size="16" font-weight="900" text-anchor="middle" fill="#4A3E3D">¥</text></svg>
+              </span>
+            </div>
+            <div class="data-card-val" id="dashWalletIncome">¥0</div>
+          </div>
+
+          <div class="data-card data-card-3" id="cardDashDone">
+            <div class="data-card-header">
+              <span class="data-card-title">已完成</span>
+              <span style="display:inline-flex;width:26px;height:26px;">
+                <svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="18" fill="#9AEBA3" stroke="#4A3E3D" stroke-width="3"/><path d="M15 24L21 30L33 18" stroke="#4A3E3D" stroke-width="4" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+            <div class="data-card-val" id="dashDoneOrders">0</div>
+          </div>
+
+          <div class="data-card data-card-4" id="cardDashPrice">
+            <div class="data-card-header">
+              <span class="data-card-title">稿条分类</span>
+              <span style="display:inline-flex;width:26px;height:26px;">
+                <svg viewBox="0 0 48 48" fill="none"><path d="M6 13C6 10.8 7.8 9 10 9H20L25 15H38C40.2 15 42 16.8 42 19V38C42 40.2 40.2 42 38 42H10C7.8 42 6 40.2 6 38V13Z" fill="#BDE0FE" stroke="#4A3E3D" stroke-width="3"/></svg>
+              </span>
+            </div>
+            <div class="data-card-val" id="dashPriceListItems">3 项</div>
+          </div>
+        </div>
+
+        <!-- 手边的稿子 -->
+        <div class="section-header card-stagger">
+          <div class="section-title">
+            <span style="display:inline-flex;width:22px;height:22px;">
+              <svg viewBox="0 0 48 48" fill="none"><rect x="8" y="10" width="32" height="28" rx="5" fill="#FFE599" stroke="#4A3E3D" stroke-width="3"/><circle cx="24" cy="24" r="5" fill="#FF8DA1"/></svg>
+            </span>
+            <span>手边的稿子</span>
+          </div>
+          <span class="section-more" onclick="app.switchTab('orders')">全部稿单 ›</span>
+        </div>
+
+        <div class="quick-orders-scroll card-stagger" id="homeQuickOrdersScroll">
+          <!-- 动态注入快速卡片 -->
+        </div>
+      </section>
+
+      <!-- ================= 2. 稿单页 (日历 + 列表联动) ================= -->
+      <section id="view-orders" class="tab-view" style="display:none;">
+        <!-- 搜索条与排序 -->
+        <div class="search-filter-box card-stagger">
+          <span style="display:inline-flex;width:20px;height:20px;">
+            <svg viewBox="0 0 48 48" fill="none"><circle cx="21" cy="21" r="13" fill="#FFF" stroke="#4A3E3D" stroke-width="3"/><path d="M31 31L42 42" stroke="#FF8DA1" stroke-width="5" stroke-linecap="round"/></svg>
+          </span>
+          <input type="text" id="orderSearchInput" class="search-input" placeholder="搜索客户 / 类型 / 状态 / 备注..." />
+          <button class="sort-icon-btn" onclick="app.toggleOrderSort()" id="orderSortBtn" title="切换排序模式">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#5C4B47" stroke-width="2.5" stroke-linecap="round">
+              <line x1="4" y1="6" x2="20" y2="6"></line>
+              <line x1="4" y1="12" x2="16" y2="12"></line>
+              <line x1="4" y1="18" x2="11" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 状态筛选 Chip 流 -->
+        <div class="filter-chips-row card-stagger" id="orderStatusChips"></div>
+
+        <!-- 紧凑迷你日历 (接单绿点 / 截稿珊瑚点) -->
+        <div class="calendar-widget card-stagger" id="ordersCalendarWrap"></div>
+
+        <!-- 稿单列表外壳 (局部重绘区域) -->
+        <div id="ordersListContainer"></div>
+      </section>
+
+      <!-- ================= 3. 画库页 (文件夹树 + 设子档案) ================= -->
+      <section id="view-gallery" class="tab-view" style="display:none;">
+        <!-- 面包屑与操作栏 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="breadcrumb-nav" id="galleryBreadcrumb"></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="app.createFolderPrompt()">
+              ＋ 文件夹
+            </button>
+            <button class="btn btn-secondary" id="galleryBatchBtn" style="padding:4px 8px;font-size:11px;" onclick="app.toggleBatchMode()">
+              批量管理
+            </button>
+          </div>
+        </div>
+
+        <!-- 角色设子卡片轮播行 -->
+        <div class="section-title" style="margin-bottom:8px;font-size:14px;">
+          <span>自家设子档案</span>
+        </div>
+        <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;margin-bottom:16px;" id="galleryCharsRow"></div>
+
+        <!-- 选中的设子档案详情卡片 (对标 UI 设计图 4) -->
+        <div id="galleryCharDossierWrap"></div>
+
+        <!-- 子文件夹网格 -->
+        <div class="gallery-grid" id="galleryFoldersGrid" style="margin-bottom:14px;"></div>
+
+        <!-- 画库图片网格 -->
+        <div class="section-header">
+          <div class="section-title" style="font-size:14px;">
+            <span>画作相册</span>
+          </div>
+          <button class="btn btn-danger" id="galleryBatchDelBtn" style="display:none;padding:4px 10px;font-size:11px;" onclick="app.deleteSelectedGalleryImages()">
+            删除选中
+          </button>
+        </div>
+        <div class="gallery-grid" id="galleryImagesGrid"></div>
+      </section>
+
+      <!-- ================= 4. 我的 ================= -->
+      <section id="view-mine" class="tab-view" style="display:none;">
+        <!-- 用户名片 -->
+        <div class="greeting-card card-stagger" onclick="app.openThemesSubView()">
+          <div class="greeting-avatar" id="mineAvatar"></div>
+          <div class="greeting-info">
+            <div class="greeting-name" id="mineNick">画手小妖</div>
+            <div style="font-size:12px;font-weight:700;color:var(--subtext);" id="mineSlogan">今天也要开开心心画画呀~</div>
+          </div>
+          <span style="color:var(--primary);font-weight:900;">›</span>
+        </div>
+
+        <!-- 功能宫格 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div class="card card-stagger" style="padding:16px;cursor:pointer;" onclick="app.openPriceListSubView()">
+            <div style="margin-bottom:8px;">
+              <span style="display:inline-flex;width:32px;height:32px;">
+                <svg viewBox="0 0 48 48" fill="none"><rect x="10" y="8" width="28" height="32" rx="4" fill="var(--card-pink)" stroke="var(--ik-dark)" stroke-width="3"/><path d="M16 16H32M16 24H28" stroke="var(--ik-dark)" stroke-width="3" stroke-linecap="round"/></svg>
+              </span>
+            </div>
+            <div style="font-weight:900;font-size:15px;">稿条价目表</div>
+            <div style="font-size:12px;color:var(--subtext);">海报排版与长图导出</div>
+          </div>
+
+          <div class="card card-stagger" style="padding:16px;cursor:pointer;" onclick="app.openWalletSubView()">
+            <div style="margin-bottom:8px;">
+              <span style="display:inline-flex;width:32px;height:32px;">
+                <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="11" width="36" height="28" rx="6" fill="var(--card-yellow)" stroke="var(--ik-dark)" stroke-width="3"/><text x="16" y="30" font-size="8" font-weight="900" fill="var(--ik-dark)">¥</text></svg>
+              </span>
+            </div>
+            <div style="font-weight:900;font-size:15px;">记账钱包</div>
+            <div style="font-size:12px;color:var(--subtext);">全年与逐月收入</div>
+          </div>
+
+          <div class="card card-stagger" style="padding:16px;cursor:pointer;" onclick="app.openThemesSubView()">
+            <div style="margin-bottom:8px;">
+              <span style="display:inline-flex;width:32px;height:32px;">
+                <svg viewBox="0 0 48 48" fill="none"><path d="M8 40L28 20" stroke="var(--card-yellow)" stroke-width="5" stroke-linecap="round"/><circle cx="38" cy="28" r="3" fill="var(--primary)"/></svg>
+              </span>
+            </div>
+            <div style="font-weight:900;font-size:15px;">主题与背景</div>
+            <div style="font-size:12px;color:var(--subtext);">9 套主题一键换肤</div>
+          </div>
+
+          <div class="card card-stagger" style="padding:16px;cursor:pointer;" onclick="app.openBackupSubView()">
+            <div style="margin-bottom:8px;">
+              <span style="display:inline-flex;width:32px;height:32px;">
+                <svg viewBox="0 0 48 48" fill="none"><path d="M24 24V40M24 40L17 33M24 40L31 33" stroke="var(--ik-dark)" stroke-width="3.5" stroke-linecap="round"/><path d="M12 28C8.7 28 6 25.3 6 22C6 19 8.2 16.5 11.1 16.1C12.1 10.4 17.1 6 23 6C30.2 6 36 11.8 36 19C39.3 19 42 21.7 42 25C42 28.3 39.3 31 36 31H28" fill="var(--card-blue)" stroke="var(--ik-dark)" stroke-width="3"/></svg>
+              </span>
+            </div>
+            <div style="font-weight:900;font-size:15px;">存储与备份</div>
+            <div style="font-size:12px;color:var(--subtext);">ZIP 打包导出 / 导入</div>
+          </div>
+        </div>
+
+        <!-- 开屏动画快速预览与重播 -->
+        <div class="card card-stagger" style="padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="app.replaySplash()">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <img src="assets/app_icon.png" style="width:38px;height:38px;border-radius:10px;border:2px solid var(--ik-dark);object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,0.15);" />
+            <div>
+              <div style="font-weight:900;font-size:14px;color:var(--text);">开屏动画 · 巫女与鸟 (1.1s)</div>
+              <div style="font-size:11px;color:var(--subtext);">点击立即重播 1080P 极速开屏画卷</div>
+            </div>
+          </div>
+          <span class="badge-chip badge-primary" style="font-weight:900;padding:4px 10px;">▶ 重播</span>
+        </div>
+
+        <!-- 离线纯净说明卡片 -->
+        <div class="card card-stagger" style="padding:16px;">
+          <div style="font-weight:900;font-size:15px;margin-bottom:6px;">✦ 妖画集 · 离线纯净承诺</div>
+          <div style="font-size:12px;color:var(--subtext);line-height:1.7;">
+            • 本 App 永久离线可用、无广告、零网络请求。<br>
+            • 数据全部存储于本机 DATA 目录 (`yaohuaji_data.json`)。<br>
+            • 画稿与设定皆属于你，可随时使用 ZIP 打包导出至系统下载目录。
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 底部固定导航栏 -->
+    <nav class="app-bottom-nav" id="appBottomNav">
+      <div class="nav-item active" data-tab="home">
+        <div class="nav-icon-wrapper" id="navIconHome"></div>
+        <span class="nav-label">首页</span>
+      </div>
+      <div class="nav-item" data-tab="orders">
+        <div class="nav-icon-wrapper" id="navIconOrders"></div>
+        <span class="nav-label">稿单</span>
+      </div>
+      <div class="nav-item" data-tab="gallery">
+        <div class="nav-icon-wrapper" id="navIconGallery"></div>
+        <span class="nav-label">画库</span>
+      </div>
+      <div class="nav-item" data-tab="mine">
+        <div class="nav-icon-wrapper" id="navIconMine"></div>
+        <span class="nav-label">我的</span>
+      </div>
+    </nav>
+
+    <!-- 浮动操作按钮 (FAB) -->
+    <div class="fab-btn" id="fabBtn">
+      <span style="display:inline-flex;width:28px;height:28px;">
+        <svg viewBox="0 0 48 48" fill="none">
+          <path d="M24 12V36M12 24H36" stroke="#4A3E3D" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </span>
+    </div>
+
+  </div>
+
+  <!-- ================= 全局弹窗 / 模态视图 ================= -->
+
+  <!-- 1. 稿单详情弹窗 -->
+  <div class="modal-backdrop" id="orderDetailModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">稿单详情</div>
+        <button class="modal-close-btn" onclick="app.closeOrderDetail()">✕</button>
+      </div>
+      <div class="modal-body" id="orderDetailBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" style="flex:2;" onclick="app.advanceActiveOrderStatus()">推进状态 ›</button>
+        <button class="btn btn-secondary" style="flex:1;" onclick="app.editActiveOrder()">编辑</button>
+        <button class="btn btn-danger" style="flex:1;" onclick="app.deleteActiveOrder()">删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 新建 / 编辑稿单表单弹窗 -->
+  <div class="modal-backdrop" id="orderFormModal">
+    <div class="modal-sheet" style="max-height:92dvh;">
+      <div class="modal-header">
+        <div class="modal-title">新建 / 编辑稿单</div>
+        <button class="modal-close-btn" onclick="app.closeOrderFormModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">客户名称 *</label>
+          <input type="text" id="formClient" class="form-input" placeholder="例如：米哈游 / 阿喵" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">约稿类型 (长按自定义分类可删除)</label>
+          <div class="filter-chips-row" id="formTypesWrap" style="margin-bottom:0;"></div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">稿酬金额 (¥)</label>
+            <input type="number" id="formPrice" class="form-input" placeholder="例如：520" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">画作规格</label>
+            <input type="text" id="formSize" class="form-input" placeholder="2000x2000 300dpi" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">约稿用途</label>
+          <input type="text" id="formPurpose" class="form-input" placeholder="个人私稿 / 商业自媒体 / 实体周边" />
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">接单日期</label>
+            <input type="date" id="formStartDate" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">截稿交付日期</label>
+            <input type="date" id="formEndDate" class="form-input" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">画稿提醒时间 (准点通知)</label>
+          <input type="datetime-local" id="formReminder" class="form-input" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">要求与备注</label>
+          <textarea id="formNote" class="form-textarea" rows="3" placeholder="填写人设特征、动作表情、交稿格式要求..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">参考图 / 进度草稿 (多选统一高质压缩)</label>
+          <div class="poster-grid-3" id="formImagesGrid"></div>
+          <input type="file" id="formImgInput" multiple accept="image/*" style="display:none;" onchange="app.handleFormImageUpload(this.files)" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" style="flex:1;" onclick="app.closeOrderFormModal()">取消</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="app.saveOrderForm()">保存稿单</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 角色档案详情弹窗 -->
+  <div class="modal-backdrop" id="charProfileModal">
+    <div class="modal-sheet" style="max-height:92dvh;">
+      <div class="modal-header">
+        <div class="modal-title">角色档案</div>
+        <button class="modal-close-btn" onclick="app.closeCharProfile()">✕</button>
+      </div>
+      <div class="modal-body" id="charProfileBody"></div>
+    </div>
+  </div>
+
+  <!-- 4. 稿条 (海报式价目表) 弹窗 -->
+  <div class="modal-backdrop" id="priceListModal">
+    <div class="modal-sheet" style="max-height:94dvh;">
+      <div class="modal-header">
+        <div class="modal-title">稿条价目表</div>
+        <button class="modal-close-btn" onclick="app.closePriceListSubView()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="poster-canvas-wrap" id="priceListPosterWrap"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary btn-block" onclick="app.exportPriceListLongImage()">
+          分享长图 (保存到系统相册)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 记账钱包弹窗 -->
+  <div class="modal-backdrop" id="walletModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">记账钱包</div>
+        <button class="modal-close-btn" onclick="app.closeWalletSubView()">✕</button>
+      </div>
+      <div class="modal-body" id="walletBody"></div>
+    </div>
+  </div>
+
+  <!-- 6. 主题与背景切换弹窗 -->
+  <div class="modal-backdrop" id="themesModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">主题配色与背景</div>
+        <button class="modal-close-btn" onclick="app.closeThemesSubView()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title" style="margin-bottom:10px;">9 套主题配色一键切换</div>
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;margin-bottom:20px;" id="themesGrid"></div>
+
+        <div class="section-title" style="margin-bottom:10px;">自定义背景图与透明度</div>
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <button class="btn btn-secondary" onclick="document.getElementById('customBgFileInput').click()">选择背景图</button>
+          <button class="btn btn-secondary" onclick="app.clearCustomBg()">恢复默认</button>
+          <input type="file" id="customBgFileInput" accept="image/*" style="display:none;" onchange="app.handleCustomBgUpload(this.files[0])" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">背景透明度</label>
+          <input type="range" id="customBgOpacity" min="0.05" max="0.9" step="0.05" class="form-input" oninput="app.handleCustomBgOpacityChange(this.value)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 存储备份弹窗 -->
+  <div class="modal-backdrop" id="backupModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <div class="modal-title">存储与备份管理</div>
+        <button class="modal-close-btn" onclick="app.closeBackupSubView()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="card" id="backupStats" style="line-height:1.9;margin-bottom:16px;"></div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn btn-primary" onclick="app.exportBackupZip()">
+            ZIP 打包备份导出 (分块缓存防OOM)
+          </button>
+          <button class="btn btn-secondary" onclick="document.getElementById('backupZipFileInput').click()">
+            导入 ZIP 备份合并 (不覆盖已有数据)
+          </button>
+          <button class="btn btn-danger" onclick="app.clearAllDataConfirm()">
+            清空本机全部数据
+          </button>
+          <input type="file" id="backupZipFileInput" accept=".zip" style="display:none;" onchange="app.importBackupZip(this.files[0])" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. 全屏大图查看器 -->
+  <div id="imageViewerModal">
+    <div class="viewer-top">
+      <span class="viewer-counter" id="viewerCounter">1 / 1</span>
+      <button class="btn btn-secondary" style="padding:4px 10px;" onclick="app.closeImageViewer()">关闭 ✕</button>
+    </div>
+    <div class="viewer-center">
+      <img id="viewerImg" src="" alt="大图预览" />
+    </div>
+    <div class="viewer-actions">
+      <button class="btn btn-secondary" onclick="app.viewerPrev()">上一张</button>
+      <button class="btn btn-primary" onclick="app.saveCurrentViewerImage()">存入相册</button>
+      <button class="btn btn-secondary" onclick="app.viewerNext()">下一张</button>
+    </div>
+  </div>
+
+  <!-- Toast 消息容器 -->
+  <div id="toastContainer"></div>
+
+  <!-- 隐藏的文件选择器 -->
+  <input type="file" id="galleryImgUploadInput" multiple accept="image/*" style="display:none;" onchange="app.handleGalleryImageImport(this.files)" />
+  <input type="file" id="charAvatarInput" accept="image/*" style="display:none;" onchange="app.handleCharAvatarUpload(this.files[0])" />
+
+  <!-- 脚本加载 -->
+  <script src="js/lib/jszip.min.js"></script>
+  <script src="js/illustrations.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    // 注入导航栏图标
+    function initNavIcons() {
+      const h = document.getElementById('navIconHome'); if (h) h.innerHTML = getIcon('home', 22);
+      const o = document.getElementById('navIconOrders'); if (o) o.innerHTML = getIcon('orders', 22);
+      const g = document.getElementById('navIconGallery'); if (g) g.innerHTML = getIcon('gallery', 22);
+      const m = document.getElementById('navIconMine'); if (m) m.innerHTML = getIcon('mine', 22);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initNavIcons);
+    } else {
+      initNavIcons();
+    }
+  </script>
+</body>
+</html>

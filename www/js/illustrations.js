@@ -34,12 +34,10 @@ const ILLUST = {
     <path d="M50 16V10" stroke="#5C4B47" stroke-width="3.5" stroke-linecap="round"/>
   </svg>`,
 
-  // 2. 铃铛带红点通知图标 (Notification Bell)
+  // 2. 铃铛通知图标 (Notification Bell - 纯净铃铛，红点通过独立 badge 控制)
   bellIcon: `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
     <path d="M24 8C17.4 8 12 13.4 12 20V29L8 35H40L36 29V20C36 13.4 30.6 8 24 8Z" fill="#FFE082" stroke="#5C4B47" stroke-width="3" stroke-linejoin="round"/>
     <path d="M20 38C20 40.2 21.8 42 24 42C26.2 42 28 40.2 28 38" stroke="#5C4B47" stroke-width="3" stroke-linecap="round"/>
-    <!-- 红点提示 -->
-    <circle cx="36" cy="11" r="5" fill="#FF5252" stroke="#FFF" stroke-width="2"/>
   </svg>`,
 
   // 3. 数据卡贴纸图标 1: 总接单 (带爱心与铅笔的便签纸)

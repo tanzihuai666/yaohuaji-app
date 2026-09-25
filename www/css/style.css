@@ -372,6 +372,7 @@ html, body {
 }
 
 .header-icon-btn {
+  position: relative;
   width: 38px;
   height: 38px;
   border-radius: var(--rs);
@@ -386,6 +387,19 @@ html, body {
 }
 .header-icon-btn:active {
   transform: scale(0.9);
+}
+
+.notification-badge-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #FF5252;
+  border: 1.5px solid #FFFFFF;
+  box-shadow: 0 1px 3px rgba(255, 82, 82, 0.4);
+  pointer-events: none;
 }
 
 /* 中间滚动内容容器 */

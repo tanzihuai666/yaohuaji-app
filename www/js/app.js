@@ -137,6 +137,7 @@ class AppController {
     if (bellIconEl && window.ILLUST) {
       bellIconEl.innerHTML = window.ILLUST.bellIcon;
     }
+    this.updateNotificationBadge();
 
     // FAB 浮动按钮点击
     const fabBtn = document.getElementById('fabBtn');
@@ -239,7 +240,70 @@ class AppController {
     `;
   }
 
+  // ================= 顶部通知与小红点逻辑 =================
+
+  // 计算当前待提醒的紧急通知 (无通知时返回空，绝不显示小红点)
+  getNotifications() {
+    const orders = window.store.data.orders || [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const urgentList = [];
+    orders.forEach(o => {
+      // 仅针对未完成且未交付的稿单
+      if (o.status !== 'done' && o.status !== 'delivered' && o.endDate) {
+        const parts = o.endDate.split('-');
+        if (parts.length === 3) {
+          const endDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+          endDate.setHours(0, 0, 0, 0);
+          const diffDays = Math.round((endDate - today) / (1000 * 60 * 60 * 24));
+          // 仅当超期或剩余天数 <= 2 天时才作为紧急通知
+          if (diffDays <= 2) {
+            urgentList.push({
+              order: o,
+              diffDays
+            });
+          }
+        }
+      }
+    });
+
+    return urgentList;
+  }
+
+  // 刷新顶部铃铛小红点显示状态 (无通知时彻底隐藏)
+  updateNotificationBadge() {
+    const dot = document.getElementById('headerBellDot');
+    if (!dot) return;
+    const notifications = this.getNotifications();
+    if (notifications.length > 0) {
+      dot.style.display = 'block';
+    } else {
+      dot.style.display = 'none';
+    }
+  }
+
+  // 点击顶部通知图标触发交互
+  handleNotificationClick() {
+    const notifications = this.getNotifications();
+    if (notifications.length === 0) {
+      this.showToast('🔔 暂无未读提醒，所有稿件都在按期推进中~');
+    } else {
+      const overdue = notifications.filter(n => n.diffDays < 0).length;
+      const dueToday = notifications.filter(n => n.diffDays === 0).length;
+      if (overdue > 0) {
+        this.showToast(`⚠️ 提醒：有 ${overdue} 笔稿单已超期，请优先处理！`);
+      } else if (dueToday > 0) {
+        this.showToast(`⏰ 提醒：有 ${dueToday} 笔稿单今日截止，加油画画！`);
+      } else {
+        this.showToast(`🔔 提醒：有 ${notifications.length} 笔稿单将在近期截止~`);
+      }
+      this.switchTab('orders');
+    }
+  }
+
   renderHome() {
+    this.updateNotificationBadge();
     const s = window.store.data.settings;
     const orders = window.store.data.orders;
     const stats = window.store.getWalletStats();
@@ -1655,11 +1719,71 @@ class AppController {
       this.renderHome();
       this.renderMine();
       this.updateSettingsProfileUI();
+      const modalAvatar = document.getElementById('modalProfileAvatar');
+      if (modalAvatar) {
+        modalAvatar.innerHTML = this.getArtistAvatarHtml(window.store.data.settings, 76);
+      }
       this.showToast('头像更新成功！');
     } catch (e) {
       console.error('Avatar upload failed:', e);
       this.showToast('头像更新失败，请重试');
     }
+  }
+
+  // ================= 个人画手资料与昵称编辑 =================
+
+  openEditProfileModal() {
+    this.currentSubView = 'editProfile';
+    this.hideBottomNav(true);
+    const modal = document.getElementById('editProfileModal');
+    if (!modal) return;
+
+    const s = window.store.data.settings;
+    const modalAvatar = document.getElementById('modalProfileAvatar');
+    if (modalAvatar) {
+      modalAvatar.innerHTML = this.getArtistAvatarHtml(s, 76);
+    }
+    const nickInput = document.getElementById('profileModalNickInput');
+    if (nickInput) {
+      nickInput.value = s.nickname || '画手小妖';
+    }
+    const sloganInput = document.getElementById('profileModalSloganInput');
+    if (sloganInput) {
+      sloganInput.value = s.slogan || '今天也要开开心心画画呀~';
+    }
+
+    modal.classList.add('modal-open');
+    window.store.pushBackHandler(() => this.closeEditProfileModal());
+  }
+
+  saveProfileModal() {
+    const nickInput = document.getElementById('profileModalNickInput');
+    const sloganInput = document.getElementById('profileModalSloganInput');
+
+    const newNick = (nickInput?.value || '').trim();
+    const newSlogan = (sloganInput?.value || '').trim();
+
+    if (!newNick) {
+      this.showToast('画手昵称不能为空哦~');
+      return;
+    }
+
+    window.store.data.settings.nickname = newNick;
+    window.store.data.settings.slogan = newSlogan;
+    window.store.persist();
+
+    this.renderHome();
+    this.renderMine();
+    this.updateSettingsProfileUI();
+    this.closeEditProfileModal();
+    this.showToast('画手资料更新成功！✨');
+  }
+
+  closeEditProfileModal() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) modal.classList.remove('modal-open');
+    this.currentSubView = null;
+    this.hideBottomNav(false);
   }
 
   handleUserNickChange(val) {
